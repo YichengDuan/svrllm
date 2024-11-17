@@ -2,6 +2,9 @@ from flask import Flask, request, jsonify, send_file
 import os
 import yaml
 from neo4j import GraphDatabase
+from pymongo import MongoClient
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
+import bcrypt
 
 app = Flask(__name__)
 
@@ -11,6 +14,10 @@ with open('config.yaml', 'r') as file:
     config = yaml.safe_load(file)
 
 print(config)
+
+# JWT Configuration
+app.config['JWT_SECRET_KEY'] = config.get('jwt_secret_key', 'your_jwt_secret')  # Set your JWT secret key
+jwt = JWTManager(app)
 
 # Directory to store uploaded and processed files
 UPLOAD_FOLDER = 'uploads'
@@ -24,8 +31,66 @@ neo4j_password = config.get('neo4j_password', 'password')
 # Establish Neo4j connection
 neo4j_driver = GraphDatabase.driver(neo4j_uri, auth=(neo4j_user, neo4j_password))
 
+# MongoDB Atlas connection details (ensure these values are set in config.yaml)
+mongodb_uri = config.get('mongodb_uri', 'your_mongodb_atlas_uri')  # Replace with your MongoDB Atlas URI
+mongo_client = MongoClient(mongodb_uri)
+mongo_db = mongo_client[config.get('mongodb_database', 'mydatabase')]  # Replace 'mydatabase' with your database name
+mongo_users_collection = mongo_db['users']  # Users collection for authentication
+mongo_collection = mongo_db[config.get('mongodb_collection', 'videos')]  # Replace 'videos' with your collection name
+
+@app.route('/register', methods=['POST'])
+def register():
+    """
+    Register a new user.
+    """
+    username = request.json.get('username')
+    password = request.json.get('password')
+
+    if not username or not password:
+        return jsonify({"error": "Username and password are required"}), 400
+
+    # Check if the user already exists
+    if mongo_users_collection.find_one({"username": username}):
+        return jsonify({"error": "User already exists"}), 409
+
+    # Hash the password
+    hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+
+    # Store the user in MongoDB
+    mongo_users_collection.insert_one({
+        "username": username,
+        "password": hashed_password
+    })
+
+    return jsonify({"message": "User registered successfully"}), 201
+
+@app.route('/login', methods=['POST'])
+def login():
+    """
+    Login an existing user and return a JWT token.
+    """
+    username = request.json.get('username')
+    password = request.json.get('password')
+
+    if not username or not password:
+        return jsonify({"error": "Username and password are required"}), 400
+
+    # Find the user in MongoDB
+    user = mongo_users_collection.find_one({"username": username})
+    if not user or not bcrypt.checkpw(password.encode('utf-8'), user['password']):
+        return jsonify({"error": "Invalid username or password"}), 401
+
+    # Create a JWT token
+    access_token = create_access_token(identity=username)
+    return jsonify({"access_token": access_token}), 200
+
 @app.route('/upload_video', methods=['POST'])
+@jwt_required()
 def upload_video():
+    """
+    Upload a video (requires authentication).
+    """
+    current_user = get_jwt_identity()  # Get the current user from the token
     if 'video' not in request.files:
         return jsonify({"error": "No video file provided"}), 400
     
@@ -49,6 +114,9 @@ def process_video(video_path):
 
     # Insert processed video information into Neo4j
     insert_data_into_neo4j(video_path, processed_result["retrieved_data"])
+
+    # Insert processed data into MongoDB
+    insert_data_into_mongodb(video_path, processed_result["retrieved_data"])
 
     return processed_result
 
@@ -79,14 +147,35 @@ def create_video_node(tx, video_path, related_data):
     )
     tx.run(query, video_path=video_path, related_videos=related_data.get('related_videos', []))
 
+def insert_data_into_mongodb(video_path, related_data):
+    """
+    Inserts video information and related content into MongoDB.
+    """
+    document = {
+        "video_path": video_path,
+        "related_videos": related_data.get('related_videos', [])
+    }
+    result = mongo_collection.insert_one(document)
+    print(f"Inserted document with ID: {result.inserted_id}")
+
 @app.route('/read_videos', methods=['GET'])
+@jwt_required()
 def read_videos():
     """
-    Read video nodes and their relationships from Neo4j.
+    Read video nodes and their relationships from Neo4j (requires authentication).
     """
     with neo4j_driver.session() as session:
         result = session.execute_write(get_video_nodes)
         return jsonify(result)
+
+@app.route('/read_mongodb', methods=['GET'])
+@jwt_required()
+def read_mongodb():
+    """
+    Read video data from MongoDB (requires authentication).
+    """
+    documents = list(mongo_collection.find({}, {'_id': 0}))  # Exclude MongoDB ObjectID from the response
+    return jsonify(documents)
 
 def get_video_nodes(tx):
     """
@@ -100,8 +189,9 @@ def get_video_nodes(tx):
     return [{"video_path": record["video_path"], "related_videos": record["related_videos"]} for record in results]
 
 @app.route('/generate_summary', methods=['GET'])
+@jwt_required()
 def generate_summary():
-    # Simulated summary generation
+    # Simulated summary generation (requires authentication)
     summary = "This is a summary of the retrieved content."
     return jsonify({"summary": summary})
 
