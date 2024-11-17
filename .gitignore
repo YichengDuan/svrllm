@@ -1,0 +1,28 @@
+# Ignore config file
+config.yaml
+
+# Ignore uploads directory
+uploads/
+
+# Ignore Python cache and environment files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+.venv/
+
+# Ignore IDE and OS-specific files
+.idea/
+*.vscode/
+.DS_Store
+Thumbs.db
+
+# Ignore log files
+*.log
+
+# Ignore Jupyter Notebook checkpoints
+.ipynb_checkpoints/
