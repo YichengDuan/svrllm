@@ -1,12 +1,26 @@
-# Licensed under the MIT
+# Licensed under the MIT License
 
-# video perpreocssing with mutiprocsssing 
-
+# Video preprocessing with multiprocessing 
 
 import cv2
 import numpy as np
 import requests
 import os
+import pinecone  # Import the Pinecone client
+
+# Initialize Pinecone with your API key
+PINECONE_API_KEY = 'your_pinecone_api_key'  # Replace with your Pinecone API key
+pinecone.init(api_key=PINECONE_API_KEY)
+
+# Create or connect to a Pinecone index
+index_name = "quickstart"
+if index_name not in pinecone.list_indexes():
+    pinecone.create_index(
+        name=index_name,
+        dimension=512,  # Adjust dimension based on your vector size
+        metric="cosine"  # Replace with your preferred metric, e.g., 'euclidean'
+    )
+pinecone_index = pinecone.Index(index_name)
 
 def extract_frames(video_path, output_dir, interval=300):
     """
@@ -22,6 +36,9 @@ def extract_frames(video_path, output_dir, interval=300):
 
     # Open the video file
     cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        raise FileNotFoundError(f"Cannot open video file: {video_path}")
+
     fps = cap.get(cv2.CAP_PROP_FPS)
     frame_interval = int(fps * interval)
     frame_count = 0
@@ -58,37 +75,37 @@ def send_to_vlm(image_path, vlm_endpoint):
     else:
         raise Exception(f"Error sending image to VLM: {response.status_code}, {response.text}")
 
-def store_vector_in_vdb(vector, vdb_endpoint):
+def store_vector_in_pinecone(vector, vector_id):
     """
-    Store the vector in the VDB.
+    Store the vector in the Pinecone index.
     
     :param vector: The vector to store.
-    :param vdb_endpoint: Endpoint URL of the VDB service.
+    :param vector_id: Unique ID for the vector.
     """
-    response = requests.post(vdb_endpoint, json={'vector': vector})
-    
-    if response.status_code != 200:
-        raise Exception(f"Error storing vector in VDB: {response.status_code}, {response.text}")
+    try:
+        pinecone_index.upsert([(vector_id, vector)])
+        print(f"Vector stored in Pinecone with ID: {vector_id}")
+    except Exception as e:
+        print(f"Error storing vector in Pinecone: {e}")
 
-def process_video(video_path, vlm_endpoint, vdb_endpoint, output_dir='frames'):
+def process_video(video_path, vlm_endpoint, output_dir='frames'):
     """
-    Process the video to extract frames, send them to VLM, and store vectors in VDB.
+    Process the video to extract frames, send them to VLM, and store vectors in Pinecone.
     
     :param video_path: Path to the input video file.
     :param vlm_endpoint: Endpoint URL of the VLM service.
-    :param vdb_endpoint: Endpoint URL of the VDB service.
     :param output_dir: Directory to save extracted frames.
     """
     extracted_frames = extract_frames(video_path, output_dir)
     
-    for frame_path in extracted_frames:
+    for idx, frame_path in enumerate(extracted_frames):
         vector = send_to_vlm(frame_path, vlm_endpoint)
-        store_vector_in_vdb(vector, vdb_endpoint)
-        print(f"Processed {frame_path}, vector stored in VDB.")
+        if vector:
+            store_vector_in_pinecone(vector, f"frame-{idx}")
+            print(f"Processed {frame_path}, vector stored in Pinecone.")
 
 # Example usage
-video_path = 'your_video.mp4'
-vlm_endpoint = 'http://your-vlm-endpoint.com/api'  # Replace with your VLM endpoint
-vdb_endpoint = 'http://your-vdb-endpoint.com/api'  # Replace with your VDB endpoint
-
-process_video(video_path, vlm_endpoint, vdb_endpoint)
+if __name__ == '__main__':
+    video_path = 'your_video.mp4'
+    vlm_endpoint = 'http://your-vlm-endpoint.com/api'  # Replace with your VLM endpoint
+    process_video(video_path, vlm_endpoint)
