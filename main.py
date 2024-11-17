@@ -63,7 +63,7 @@ def insert_data_into_neo4j(video_path, related_data):
     Inserts video information and related content into Neo4j.
     """
     with neo4j_driver.session() as session:
-        session.write_transaction(create_video_node, video_path, related_data)
+        session.execute_write(create_video_node, video_path, related_data)
 
 def create_video_node(tx, video_path, related_data):
     """
@@ -85,7 +85,7 @@ def read_videos():
     Read video nodes and their relationships from Neo4j.
     """
     with neo4j_driver.session() as session:
-        result = session.read_transaction(get_video_nodes)
+        result = session.execute_write(get_video_nodes)
         return jsonify(result)
 
 def get_video_nodes(tx):
