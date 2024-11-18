@@ -4,6 +4,9 @@ config.yaml
 # Ignore uploads directory
 uploads/
 
+# Ignore models
+service/model
+
 # Ignore Python cache and environment files
 __pycache__/
 *.pyc
