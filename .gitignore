@@ -7,6 +7,9 @@ uploads/
 # Ignore models
 service/model
 
+# Ignore tests directory
+test/
+
 # Ignore Python cache and environment files
 __pycache__/
 *.pyc

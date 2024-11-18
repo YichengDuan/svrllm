@@ -192,8 +192,16 @@ def get_video_nodes(tx):
 @jwt_required()
 def generate_summary():
     # Simulated summary generation (requires authentication)
+
+    # 拿到相似度，通过图去往下找，知道节点相似度低于一个值， 
+
     summary = "This is a summary of the retrieved content."
     return jsonify({"summary": summary})
+
+
+
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)
