@@ -4,7 +4,7 @@ import torch
 MODEL_PATH = "./model/Qwen2-VL-2B-Instruct"
 # default: Load the model on the available device(s)
 model = Qwen2VLForConditionalGeneration.from_pretrained(
-   MODEL_PATH , torch_dtype="auto", device_map="auto"
+   MODEL_PATH , torch_dtype="auto", device_map="mps"
 )
 
 # We recommend enabling flash_attention_2 for better acceleration and memory saving, especially in multi-image and video scenarios.
@@ -33,6 +33,7 @@ messages = [
                 "image": "https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-VL/assets/demo.jpeg",
             },
             {"type": "text", "text": "Describe this image."},
+            # 可改
         ],
     }
 ]
@@ -50,7 +51,8 @@ inputs = processor(
     return_tensors="pt",
 )
 inputs = inputs.to("mps")
-
+import time
+a1 = time.time()
 # Inference: Generation of the output
 generated_ids = model.generate(**inputs, max_new_tokens=128)
 generated_ids_trimmed = [
@@ -59,7 +61,9 @@ generated_ids_trimmed = [
 output_text = processor.batch_decode(
     generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
 )
+a2 = time.time()
 print(output_text)
+print("Time taken for inference:", a2 - a1, "seconds")
 
 def generate_dense_vector(image_path, prompt):
     """
