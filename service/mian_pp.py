@@ -22,6 +22,7 @@ if index_name not in pinecone.list_indexes():
     )
 pinecone_index = pinecone.Index(index_name)
 
+
 def extract_frames(video_path, output_dir, interval=300):
     """
     Extract frames from a video every 'interval' seconds.

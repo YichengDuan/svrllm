@@ -1,19 +1,12 @@
 from flask import Flask, request, jsonify, send_file
 import os
-import yaml
-from neo4j import GraphDatabase
-from pymongo import MongoClient
+
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 import bcrypt
 
 app = Flask(__name__)
 
-# Load configuration from config.yaml
-config = {}
-with open('config.yaml', 'r') as file:
-    config = yaml.safe_load(file)
 
-print(config)
 
 # JWT Configuration
 app.config['JWT_SECRET_KEY'] = config.get('jwt_secret_key', 'your_jwt_secret')  # Set your JWT secret key
@@ -23,20 +16,6 @@ jwt = JWTManager(app)
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Neo4j Aura connection details (ensure these values are set in config.yaml)
-neo4j_uri = config.get('neo4j_uri', 'bolt://localhost:7687')
-neo4j_user = config.get('neo4j_user', 'neo4j')
-neo4j_password = config.get('neo4j_password', 'password')
-
-# Establish Neo4j connection
-neo4j_driver = GraphDatabase.driver(neo4j_uri, auth=(neo4j_user, neo4j_password))
-
-# MongoDB Atlas connection details (ensure these values are set in config.yaml)
-mongodb_uri = config.get('mongodb_uri', 'your_mongodb_atlas_uri')  # Replace with your MongoDB Atlas URI
-mongo_client = MongoClient(mongodb_uri)
-mongo_db = mongo_client[config.get('mongodb_database', 'mydatabase')]  # Replace 'mydatabase' with your database name
-mongo_users_collection = mongo_db['users']  # Users collection for authentication
-mongo_collection = mongo_db[config.get('mongodb_collection', 'videos')]  # Replace 'videos' with your collection name
 
 @app.route('/register', methods=['POST'])
 def register():
