@@ -4,7 +4,7 @@ import torch
 MODEL_PATH = "./model/Qwen2-VL-2B-Instruct"
 # default: Load the model on the available device(s)
 model = Qwen2VLForConditionalGeneration.from_pretrained(
-   MODEL_PATH , torch_dtype="auto", device_map="mps"
+   MODEL_PATH , torch_dtype=torch.bfloat16,device_map="mps"
 )
 
 # We recommend enabling flash_attention_2 for better acceleration and memory saving, especially in multi-image and video scenarios.
@@ -16,14 +16,18 @@ model = Qwen2VLForConditionalGeneration.from_pretrained(
 # )
 
 # default processer
-processor = AutoProcessor.from_pretrained(MODEL_PATH)
+# processor = AutoProcessor.from_pretrained(MODEL_PATH)
 
 # The default range for the number of visual tokens per image in the model is 4-16384.
 # You can set min_pixels and max_pixels according to your needs, such as a token range of 256-1280, to balance performance and cost.
 # min_pixels = 256*28*28
 # max_pixels = 1280*28*28
 # processor = AutoProcessor.from_pretrained("Qwen/Qwen2-VL-7B-Instruct", min_pixels=min_pixels, max_pixels=max_pixels)
-
+min_pixels = 256 * 28 * 28
+max_pixels = 1280 * 28 * 28
+processor = AutoProcessor.from_pretrained(
+    MODEL_PATH, min_pixels=min_pixels, max_pixels=max_pixels
+)
 messages = [
     {
         "role": "user",
@@ -32,7 +36,7 @@ messages = [
                 "type": "image",
                 "image": "https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-VL/assets/demo.jpeg",
             },
-            {"type": "text", "text": "Describe this image."},
+            {"type": "text", "text": "Is there a dog? Only anwser yes or no"},
             # 可改
         ],
     }
