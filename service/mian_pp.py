@@ -1,13 +1,12 @@
 # Licensed under the MIT License
 
 # Video preprocessing with multiprocessing 
-
 import cv2
 import numpy as np
 import requests
 import os
 import pinecone  # Import the Pinecone client
-
+import json
 # Initialize Pinecone with your API key
 PINECONE_API_KEY = 'your_pinecone_api_key'  # Replace with your Pinecone API key
 pinecone.init(api_key=PINECONE_API_KEY)
@@ -89,6 +88,30 @@ def store_vector_in_pinecone(vector, vector_id):
     except Exception as e:
         print(f"Error storing vector in Pinecone: {e}")
 
+def video_pair_generation(video_path,CC_sequence):
+
+    return
+
+def extract_cc(CC_json_path:str)-> list:
+    """
+    Extract CC data from CC_json_path.
+    
+    :param CC_json_path: Path to the CC JSON file.
+    :return: List of CC data.
+    """
+    cc_data = {}
+    with open(CC_json_path, 'r') as file:
+        tmp_data = []
+
+        # load by line from CC_json_path
+        for line in file.readlines():
+            tmp_data.append(json.loads(line))
+
+
+    return cc_data
+    
+
+
 def process_video(video_path,CC_json_path, vlm_endpoint):
     """
     Process the video to extract frames, send them to VLM, and store vectors in Pinecone.
@@ -97,6 +120,8 @@ def process_video(video_path,CC_json_path, vlm_endpoint):
     :param vlm_endpoint: Endpoint URL of the VLM service.
     :param output_dir: Directory to save extracted frames.
     """
+    CC_sequent_data = extract_cc(CC_json_path)
+
     extracted_frames = (video_path, )
     
     for idx, frame_path in enumerate(extracted_frames):
