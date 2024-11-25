@@ -16,18 +16,18 @@ neo4j_user = config.get('neo4j_user', 'neo4j')
 neo4j_password = config.get('neo4j_password', 'password')
 # Establish Neo4j connection
 neo4j_driver = GraphDatabase.driver(neo4j_uri, auth=(neo4j_user, neo4j_password))
-
+with GraphDatabase.driver(neo4j_uri, auth=(neo4j_user, neo4j_password)) as driver:
+    driver.verify_connectivity()
 
 # Initialize Pinecone with your API key
-PINECONE_API_KEY = config.get('pinecone_api_key',"")  # Replace with your Pinecone API key
-pinecone.init(api_key=PINECONE_API_KEY)
+pinecone.init(api_key=config.get('pinecone_api_key',""))
 
-# Create or connect to a Pinecone index
-index_name = "video"
-if index_name not in pinecone.list_indexes():
-    pinecone.create_index(
-        name=index_name,
-        dimension=512,  # Adjust dimension based on your vector size
-        metric="cosine"  # Replace with your preferred metric, e.g., 'euclidean'
-    )
-pinecone_index = pinecone.Index(index_name)
+# # Create or connect to a Pinecone index
+# index_name = "video"
+# if index_name not in pinecone.list_indexes():
+#     pinecone.create_index(
+#         name=index_name,
+#         dimension=512,  # Adjust dimension based on your vector size
+#         metric="cosine"  # Replace with your preferred metric, e.g., 'euclidean'
+#     )
+# pinecone_index = pinecone.Index(index_name)
