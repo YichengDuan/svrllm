@@ -13,7 +13,7 @@ PINECONE_API_KEY = 'your_pinecone_api_key'  # Replace with your Pinecone API key
 pinecone.init(api_key=PINECONE_API_KEY)
 
 # Create or connect to a Pinecone index
-index_name = "quickstart"
+index_name = "video"
 if index_name not in pinecone.list_indexes():
     pinecone.create_index(
         name=index_name,
@@ -88,7 +88,7 @@ def store_vector_in_pinecone(vector, vector_id):
     except Exception as e:
         print(f"Error storing vector in Pinecone: {e}")
 
-def process_video(video_path, vlm_endpoint, output_dir='frames'):
+def process_video(video_path,CC_json_path, vlm_endpoint):
     """
     Process the video to extract frames, send them to VLM, and store vectors in Pinecone.
     
@@ -96,7 +96,7 @@ def process_video(video_path, vlm_endpoint, output_dir='frames'):
     :param vlm_endpoint: Endpoint URL of the VLM service.
     :param output_dir: Directory to save extracted frames.
     """
-    extracted_frames = extract_frames(video_path, output_dir)
+    extracted_frames = (video_path, )
     
     for idx, frame_path in enumerate(extracted_frames):
         vector = send_to_vlm(frame_path, vlm_endpoint)

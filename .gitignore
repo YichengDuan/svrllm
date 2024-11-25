@@ -10,6 +10,9 @@ service/model
 # Ignore tests directory
 test/
 
+# Ignore data directory
+data/
+
 # Ignore Python cache and environment files
 __pycache__/
 *.pyc
