@@ -96,7 +96,7 @@ def extract_cc(CC_json_path:str)-> list:
             tmp_line = json.loads(line)
             print(tmp_line)
             tmp_data.append()
-
+            
 
 
     return cc_data
