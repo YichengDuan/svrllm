@@ -7,20 +7,7 @@ import requests
 import os
 import pinecone  # Import the Pinecone client
 import json
-# Initialize Pinecone with your API key
-PINECONE_API_KEY = 'your_pinecone_api_key'  # Replace with your Pinecone API key
-pinecone.init(api_key=PINECONE_API_KEY)
-
-# Create or connect to a Pinecone index
-index_name = "video"
-if index_name not in pinecone.list_indexes():
-    pinecone.create_index(
-        name=index_name,
-        dimension=512,  # Adjust dimension based on your vector size
-        metric="cosine"  # Replace with your preferred metric, e.g., 'euclidean'
-    )
-pinecone_index = pinecone.Index(index_name)
-
+from neo4j import GraphDatabase
 
 def extract_frames(video_path, output_dir, interval=300):
     """
@@ -75,21 +62,23 @@ def send_to_vlm(image_path, vlm_endpoint):
     else:
         raise Exception(f"Error sending image to VLM: {response.status_code}, {response.text}")
 
-def store_vector_in_pinecone(vector, vector_id):
-    """
-    Store the vector in the Pinecone index.
+# def store_vector_in_pinecone(vector, vector_id):
+#     """
+#     Store the vector in the Pinecone index.
     
-    :param vector: The vector to store.
-    :param vector_id: Unique ID for the vector.
-    """
-    try:
-        pinecone_index.upsert([(vector_id, vector)])
-        print(f"Vector stored in Pinecone with ID: {vector_id}")
-    except Exception as e:
-        print(f"Error storing vector in Pinecone: {e}")
+#     :param vector: The vector to store.
+#     :param vector_id: Unique ID for the vector.
+#     """
+#     try:
+#         pinecone_index.upsert([(vector_id, vector)])
+#         print(f"Vector stored in Pinecone with ID: {vector_id}")
+#     except Exception as e:
+#         print(f"Error storing vector in Pinecone: {e}")
+
 
 def video_pair_generation(video_path,CC_sequence):
-
+    # time frame alignment need 
+    
     return
 
 def extract_cc(CC_json_path:str)-> list:
@@ -102,36 +91,37 @@ def extract_cc(CC_json_path:str)-> list:
     cc_data = {}
     with open(CC_json_path, 'r') as file:
         tmp_data = []
-
         # load by line from CC_json_path
         for line in file.readlines():
-            tmp_data.append(json.loads(line))
+            tmp_line = json.loads(line)
+            print(tmp_line)
+            tmp_data.append()
+
 
 
     return cc_data
     
 
 
-def process_video(video_path,CC_json_path, vlm_endpoint):
+def process_video(video_path,CC_json_path, vlm_endpoint,pinecone_index:pinecone.Index, neo4j_driver:GraphDatabase.driver):
     """
-    Process the video to extract frames, send them to VLM, and store vectors in Pinecone.
-    
-    :param video_path: Path to the input video file.
-    :param vlm_endpoint: Endpoint URL of the VLM service.
-    :param output_dir: Directory to save extracted frames.
+    Process the video to extract frames, send them to VLM, 
+    and store vectors in Pinecone, neo4j for graph construction
     """
-    CC_sequent_data = extract_cc(CC_json_path)
+    CC_sequent_raw = extract_cc(CC_json_path)
 
-    extracted_frames = (video_path, )
+    extracted_frames,CC_sequent = video_pair_generation(video_path, CC_sequent_raw)
     
-    for idx, frame_path in enumerate(extracted_frames):
-        vector = send_to_vlm(frame_path, vlm_endpoint)
-        if vector:
-            store_vector_in_pinecone(vector, f"frame-{idx}")
-            print(f"Processed {frame_path}, vector stored in Pinecone.")
+    # for idx, frame_path in enumerate(extracted_frames):
+    #     vector = send_to_vlm(frame_path, vlm_endpoint)
+    #     if vector:
+    #         store_vector_in_pinecone(vector, f"frame-{idx}")
+    #         print(f"Processed {frame_path}, vector stored in Pinecone.")
 
 # Example usage
 if __name__ == '__main__':
-    video_path = 'your_video.mp4'
-    vlm_endpoint = 'http://your-vlm-endpoint.com/api'  # Replace with your VLM endpoint
-    process_video(video_path, vlm_endpoint)
+    # video_path = 'your_video.mp4'
+    # vlm_endpoint = 'http://your-vlm-endpoint.com/api'  # Replace with your VLM endpoint
+    # process_video(video_path, vlm_endpoint)
+
+    process_video()
