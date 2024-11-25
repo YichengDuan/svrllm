@@ -2,7 +2,7 @@
 config.yaml
 
 # Ignore uploads directory
-uploads/
+/uploads
 
 # Ignore models
 service/model
