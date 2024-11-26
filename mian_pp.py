@@ -46,21 +46,34 @@ def extract_frames(video_path, output_dir, interval=300):
     cap.release()
     return extracted_frames
 
-def send_to_vlm(image_path, vlm_endpoint):
-    """
-    Send an image to the VLM and get the vector.
-    
-    :param image_path: Path to the image file.
-    :param vlm_endpoint: Endpoint URL of the VLM service.
-    :return: The vector response from the VLM.
-    """
-    with open(image_path, 'rb') as img_file:
-        response = requests.post(vlm_endpoint, files={'file': img_file})
-    
-    if response.status_code == 200:
-        return response.json()  # Assuming the VLM returns JSON with the vector
+def send_to_vlm(frame, cc:dict, background:dict, retrun_vec:bool):
+    ## take the frame, take the background, take the CC 
+    # prompt enhancement
+    # prompt = "" img + text
+    #   messages = [
+        # {
+        #     "role": "user",
+        #     "content": [
+        #         {
+        #             "type": "image",
+        #             "image": "https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-VL/assets/demo.jpeg",
+        #         },
+        #         {"type": "text", "text": "Is there a dog? Only anwser yes or no"},
+        #         # 可改
+        #     ],
+        # }
+    # ]
+
+    # send to vlm model and get the vector
+
+    vec = [0.0,0.0,0.0,0.0,0.0,0]
+    vlm_answer = ""
+    if retrun_vec : 
+        return vec
     else:
-        raise Exception(f"Error sending image to VLM: {response.status_code}, {response.text}")
+        return vlm_answer
+    
+
 
 # def store_vector_in_pinecone(vector, vector_id):
 #     """
@@ -76,10 +89,19 @@ def send_to_vlm(image_path, vlm_endpoint):
 #         print(f"Error storing vector in Pinecone: {e}")
 
 
-def video_pair_generation(video_path,CC_sequence):
+def video_pair_generation(video_path,CC_sequence,invterval:300,tag:bool)->tuple[list]:
     # time frame alignment need 
+    # with the give interval ................
+    # cc "PrimaryTag" can use as segmentation
+    # diveide if known cc tag ... 
+    # can do video img size change ...
+
+    # index alignment need !!!!!!!
+    vid_frames = []
+    cc_seq_data = []
     
-    return
+
+    return vid_frames,cc_seq_data
 
 def extract_cc(CC_json_path:str)-> list:
     """
@@ -88,7 +110,9 @@ def extract_cc(CC_json_path:str)-> list:
     :param CC_json_path: Path to the CC JSON file.
     :return: List of CC data.
     """
-    cc_data = {}
+    cc_data = {"background":{},"CC":{}}
+    # format
+
     with open(CC_json_path, 'r') as file:
         tmp_data = []
         # load by line from CC_json_path
@@ -101,7 +125,11 @@ def extract_cc(CC_json_path:str)-> list:
 
     return cc_data
     
+def store_data():
+    # node <-> vec pair
 
+
+    return
 
 def process_video(video_path,CC_json_path, vlm_endpoint,pinecone_index:pinecone.Index, neo4j_driver:GraphDatabase.driver):
     """
@@ -112,6 +140,15 @@ def process_video(video_path,CC_json_path, vlm_endpoint,pinecone_index:pinecone.
 
     extracted_frames,CC_sequent = video_pair_generation(video_path, CC_sequent_raw)
     
+    # write an loop that batch of zip  extracted_frames,CC_sequent 
+
+    result = send_to_vlm()
+
+    # send to database:
+    # store in pinecone
+    # store in neo4j
+
+    store_data()
     # for idx, frame_path in enumerate(extracted_frames):
     #     vector = send_to_vlm(frame_path, vlm_endpoint)
     #     if vector:
