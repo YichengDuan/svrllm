@@ -34,9 +34,9 @@ messages = [
         "content": [
             {
                 "type": "image",
-                "image": "https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-VL/assets/demo.jpeg",
+                "image": "./frames/frame_8990.jpg",
             },
-            {"type": "text", "text": "Is there a dog? Only anwser yes or no"},
+            {"type": "text", "text": "what is this image saying? what is the story?"},
             # 可改
         ],
     }
@@ -55,6 +55,7 @@ inputs = processor(
     return_tensors="pt",
 )
 inputs = inputs.to("mps")
+
 import time
 a1 = time.time()
 # Inference: Generation of the output
