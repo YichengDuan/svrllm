@@ -9,6 +9,7 @@ import pinecone  # Import the Pinecone client
 import json
 from neo4j import GraphDatabase
 from datetime import datetime
+from numpy.matlib import empty
 
 def extract_frames(video_path, output_dir, interval=300):
     """
@@ -144,26 +145,69 @@ def video_pair_generation(video_path, CC_sequence, interval:300, tag:bool) -> tu
 
     return vid_frames, cc_seq_data
 
-def extract_cc(CC_json_path:str)-> list:
+def extract_cc(CC_json_path:str)-> dict:
     """
     Extract CC data from CC_json_path.
     
     :param CC_json_path: Path to the CC JSON file.
-    :return: List of CC data.
+    :return: dict of CC data.
     """
-    cc_data = {"background":{},"CC":{}}
-    # format
+    cc_data = {"background":{},"CC":[]}
+    temp_text = []  # store the uncompleted subtitles
+    temp_start_time = None  # store the start time
 
-    with open(CC_json_path, 'r') as file:
-        tmp_data = []
-        # load by line from CC_json_path
-        for line in file.readlines():
-            tmp_line = json.loads(line)
-            print(tmp_line)
-            tmp_data.append()
-            
-
-
+    with open(CC_json_path, 'r', encoding='utf-8') as file:
+        # each line for the json
+        for line in file:
+            try:
+                # load the json file
+                tmp_line = json.loads(line.strip())
+                # if segmentation
+                if "PrimaryTag" in tmp_line and tmp_line["PrimaryTag"].startswith("SEG"):
+                    cc_data["CC"].append({
+                        "StartTime": tmp_line.get("StartTime"),
+                        "EndTime": tmp_line.get("EndTime"),
+                        "PrimaryTag": tmp_line.get("PrimaryTag", ""),
+                        "Type": tmp_line.get("Type", ""),
+                    })
+                # according to the key to determine is background or not ( here we use the existence of start time and end time)
+                elif "StartTime" in tmp_line and "EndTime" in tmp_line:
+                    text = tmp_line.get("Text", "")
+                    start_time = tmp_line.get("StartTime")
+                    end_time = tmp_line.get("EndTime")
+                    primaryTag = tmp_line.get("PrimaryTag")
+                    if temp_text:
+                        # temp_text is not empty which means that there are uncompleted subtitles
+                        temp_text.append(text)
+                        # check if the cc is completed according ".", "!", "?"
+                        if text.endswith((".", "!", "?","♪",")")):
+                            cc_data["CC"].append({
+                                "StartTime": temp_start_time,
+                                "EndTime": end_time,
+                                "PrimaryTag": primaryTag,
+                                "Text": " ".join(temp_text),
+                            })
+                            temp_text = []
+                            temp_start_time = None
+                    else:
+                        # if the subtitle is single
+                        if text.endswith((".", "!", "?")):
+                            cc_data["CC"].append({
+                                "StartTime": start_time,
+                                "EndTime": end_time,
+                                "PrimaryTag": primaryTag,
+                                "Text": text,
+                            })
+                        else:
+                            # uncompleted, a new start
+                            temp_text.append(text)
+                            temp_start_time = start_time
+                else:
+                    # background
+                    for key, value in tmp_line.items():
+                        cc_data["background"][key] = value
+            except json.JSONDecodeError as e:
+                print(f"Error decoding JSON line: {line}, error: {e}")
     return cc_data
     
 def store_data():
