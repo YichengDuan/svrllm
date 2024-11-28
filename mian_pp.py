@@ -8,8 +8,8 @@ import os
 import pinecone  # Import the Pinecone client
 import json
 from neo4j import GraphDatabase
+from datetime import datetime
 from numpy.matlib import empty
-
 
 def extract_frames(video_path, output_dir, interval=300):
     """
@@ -39,9 +39,14 @@ def extract_frames(video_path, output_dir, interval=300):
             break
         
         if frame_count % frame_interval == 0:
+            timestamp_ms = cap.get(cv2.CAP_PROP_POS_MSEC)
+            timestamp_seconds = timestamp_ms / 1000.0
             frame_filename = os.path.join(output_dir, f'frame_{frame_count}.jpg')
             cv2.imwrite(frame_filename, frame)
-            extracted_frames.append(frame_filename)
+            extracted_frames.append({
+                "frame_path": frame_filename,
+                "timestamp": timestamp_seconds
+            })
         
         frame_count += 1
 
@@ -91,7 +96,12 @@ def send_to_vlm(frame, cc:dict, background:dict, retrun_vec:bool):
 #         print(f"Error storing vector in Pinecone: {e}")
 
 
-def video_pair_generation(video_path,CC_sequence,invterval:300,tag:bool)->tuple[list]:
+def parse_time(time_str) -> datetime:
+    time_format = "%Y%m%d%H%M%S.%f"
+    return datetime.strptime(time_str, time_format)
+
+
+def video_pair_generation(video_path, CC_sequence, interval:300, tag:bool) -> tuple[list]:
     # time frame alignment need 
     # with the give interval ................
     # cc "PrimaryTag" can use as segmentation
@@ -99,11 +109,41 @@ def video_pair_generation(video_path,CC_sequence,invterval:300,tag:bool)->tuple[
     # can do video img size change ...
 
     # index alignment need !!!!!!!
-    vid_frames = []
-    cc_seq_data = []
     
+    output_dir = "./frames"
+    vid_frames = extract_frames(video_path, output_dir, interval=interval)
 
-    return vid_frames,cc_seq_data
+    cc_seq_data = []
+    raw_cc_data = CC_sequence["CC"]
+    video_start_time = parse_time(raw_cc_data[0]["StartTime"])
+    cc_index = 0  # Start from the first CC entry
+
+    for frame in vid_frames:
+        frame_time = frame["timestamp"]
+
+        # Update the CC index to the closest matching CC
+        while cc_index < len(raw_cc_data):
+            cc_end_time = parse_time(raw_cc_data[cc_index]["EndTime"])
+            if frame_time > cc_end_time - video_start_time:
+                cc_index += 1
+            else:
+                break
+
+        # Check if the frame falls into the current CC range
+        cc_start_time = parse_time(raw_cc_data[cc_index]["StartTime"])
+        cc_end_time = parse_time(raw_cc_data[cc_index]["EndTime"])
+        matching_cc = (
+            raw_cc_data[cc_index]
+            if cc_index < len(raw_cc_data) and cc_start_time - video_start_time <= frame_time <= cc_end_time - video_start_time
+            else None
+        )
+
+        cc_seq_data.append({
+            "cc_text": matching_cc["Text"] if matching_cc else None,
+            "primary_tag": matching_cc["PrimaryTag"] if matching_cc and tag else None
+        })
+
+    return vid_frames, cc_seq_data
 
 def extract_cc(CC_json_path:str)-> dict:
     """
