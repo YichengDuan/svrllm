@@ -3,7 +3,7 @@ config.yaml
 
 # Ignore uploads directory
 /uploads
-
+/frames
 # Ignore models
 service/model
 
