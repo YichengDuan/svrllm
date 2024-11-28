@@ -1,7 +1,6 @@
 import yaml
 from neo4j import GraphDatabase
-import pinecone  # Import the Pinecone client
-
+from pinecone import Pinecone, ServerlessSpec
 # Load configuration from config.yaml
 config = {}
 with open('config.yaml', 'r') as file:
@@ -19,15 +18,19 @@ neo4j_driver = GraphDatabase.driver(neo4j_uri, auth=(neo4j_user, neo4j_password)
 with GraphDatabase.driver(neo4j_uri, auth=(neo4j_user, neo4j_password)) as driver:
     driver.verify_connectivity()
 
-# Initialize Pinecone with your API key
-pinecone.init(api_key=config.get('pinecone_api_key',""))
 
-# # Create or connect to a Pinecone index
-# index_name = "video"
-# if index_name not in pinecone.list_indexes():
-#     pinecone.create_index(
-#         name=index_name,
-#         dimension=512,  # Adjust dimension based on your vector size
-#         metric="cosine"  # Replace with your preferred metric, e.g., 'euclidean'
+pc = Pinecone(
+    api_key=config.get('pinecone_api_key',"")
+)
+
+# usage Now do stuff
+# if 'video' not in pc.list_indexes().names():
+#     pc.create_index(
+#         name='video', 
+#         dimension=1536, 
+#         metric='cosine',
+#         spec=ServerlessSpec(
+#             cloud='aws',
+#             region='us-west-2'
+#         )
 #     )
-# pinecone_index = pinecone.Index(index_name)
