@@ -19,7 +19,7 @@ with GraphDatabase.driver(neo4j_uri, auth=(neo4j_user, neo4j_password)) as drive
     driver.verify_connectivity()
 
 
-pc = Pinecone(
+pinecone_client = Pinecone(
     api_key=config.get('pinecone_api_key',"")
 )
 
