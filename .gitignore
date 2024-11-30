@@ -6,6 +6,7 @@ config.yaml
 /frames
 # Ignore models
 service/model
+model/
 
 # Ignore tests directory
 test/
