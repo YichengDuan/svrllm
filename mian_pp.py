@@ -14,55 +14,54 @@ from transformers import AutoProcessor, Qwen2VLForConditionalGeneration
 import torch
 from PIL import Image
 from vlm import VLM_EMB
+from tqdm import tqdm
 
 
-vlm = VLM_EMB()
-
-
-def extract_frames(video_path, output_dir, interval=300):
+def extract_frames_opencv(video_path, output_dir, interval=300):
     """
-    Extract frames from a video every 'interval' seconds.
+    Extract frames from a video every 'interval' seconds using OpenCV with frame seeking.
     
     :param video_path: Path to the input video file.
     :param output_dir: Directory to save extracted frames.
     :param interval: Time interval in seconds to extract frames (default is 300 seconds).
-    :return: List of paths to the extracted frames.
+    :return: List of dictionaries containing frame paths and their corresponding timestamps.
     """
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    # Open the video file
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         raise FileNotFoundError(f"Cannot open video file: {video_path}")
 
     fps = cap.get(cv2.CAP_PROP_FPS)
-    frame_interval = int(fps * interval)
-    frame_count = 0
-    extracted_frames = []
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    duration = total_frames / fps
 
-    while True:
+    extracted_frames = []
+    current_time = 0.0
+
+    while current_time < duration:
+        # Set the position in milliseconds
+        cap.set(cv2.CAP_PROP_POS_MSEC, current_time * 1000)
         ret, frame = cap.read()
         if not ret:
-            break
-        
-        if frame_count % frame_interval == 0:
-            timestamp_ms = cap.get(cv2.CAP_PROP_POS_MSEC)
-            timestamp_seconds = timestamp_ms / 1000.0
-            frame_filename = os.path.join(output_dir, f'frame_{frame_count}.jpg')
-            cv2.imwrite(frame_filename, frame)
-            extracted_frames.append({
-                "frame_path": frame_filename,
-                "timestamp": timestamp_seconds
-            })
-        
-        frame_count += 1
+            print(f"Frame at {current_time} seconds not found.")
+            current_time += interval
+            continue
+
+        frame_filename = os.path.join(output_dir, f'frame_{int(current_time)}s.jpg')
+        cv2.imwrite(frame_filename, frame)
+        extracted_frames.append({
+            "frame_path": frame_filename,
+            "timestamp": current_time
+        })
+        current_time += interval
 
     cap.release()
     return extracted_frames
 
 
-def send_to_vlm(frames: list[dict], ccs: list[dict], background: dict, retrun_vec: bool):
+def send_to_vlm(frames: list[dict], ccs: list[dict],vlm:VLM_EMB, background: dict, retrun_vec: bool,batch_size=2):
     ## take the frame, take the background, take the CC 
     # prompt enhancement
     # prompt = "" img + text
@@ -107,10 +106,19 @@ def send_to_vlm(frames: list[dict], ccs: list[dict], background: dict, retrun_ve
         )
         text_prompt_list.append(text_prompt)
     
-    if retrun_vec:
-        return vlm.generate_dense_vector(image_path_list, text_prompt_list)
-    else:
-        return vlm.generate_text(image_path_list, text_prompt_list)
+    result = []
+    l = len(list(zip(image_path_list, text_prompt_list)))
+    for ndx in tqdm(range(0, l, batch_size), desc="vlm embedding/generation..."):
+        batch_image_path_list = image_path_list[ndx:min(ndx + batch_size, l)]
+        batch_text_prompt_list = text_prompt_list[ndx:min(ndx + batch_size, l)]
+        if retrun_vec:
+            result.extend(vlm.generate_dense_vector(batch_image_path_list, batch_text_prompt_list))
+        else:
+            result.extend(vlm.generate_text(batch_image_path_list, batch_text_prompt_list))
+    return result
+        
+
+    
     
 
 # def store_vector_in_pinecone(vector, vector_id):
@@ -142,7 +150,10 @@ def video_pair_generation(video_path, CC_sequence, interval:int = 300, tag:bool 
     # index alignment need !!!!!!!
     
     output_dir = "./frames"
-    vid_frames = extract_frames(video_path, output_dir, interval=interval)
+    # vid_frames = extract_frames(video_path, output_dir, interval=interval)
+    vid_frames = extract_frames_opencv(video_path, output_dir, interval=interval)
+
+    
     print(f"[Finished]: extract_frames. Length of vid_frames = {len(vid_frames)}")
 
     cc_seq_data = []
@@ -249,7 +260,7 @@ def store_data():
 
     return
 
-def process_video(video_path,CC_json_path, vlm_endpoint=None,pinecone_index:pinecone.Index=None, neo4j_driver:GraphDatabase.driver=None):
+def process_video(video_path,CC_json_path, vlm_endpoint:VLM_EMB,pinecone_index:pinecone.Index=None, neo4j_driver:GraphDatabase.driver=None):
     """
     Process the video to extract frames, send them to VLM, 
     and store vectors in Pinecone, neo4j for graph construction
@@ -257,15 +268,55 @@ def process_video(video_path,CC_json_path, vlm_endpoint=None,pinecone_index:pine
     CC_sequent_raw = extract_cc(CC_json_path)
     print(f"[Finished]: extract_cc. Length of CC in CC_sequent_raw = {len(CC_sequent_raw['CC'])}")
 
-    extracted_frames, CC_sequent = video_pair_generation(video_path, CC_sequent_raw)
+    extracted_frames, CC_sequent = video_pair_generation(video_path, CC_sequent_raw,interval=100)
     print(f"[Finished]: video_pair_generation. Length of extracted_frames = {len(extracted_frames)}")
     
     # write an loop that batch of zip  extracted_frames,CC_sequent 
+<<<<<<< Tabnine <<<<<<<
+def process_video(video_path, CC_json_path, vlm_endpoint: VLM_EMB, pinecone_index: pinecone.Index = None, neo4j_driver: GraphDatabase.driver = None):#+
+    """#+
+    Process a video by extracting frames, generating vector embeddings using a Vision Language Model (VLM),#+
+    and optionally storing the results in Pinecone and Neo4j databases.#+
+#+
+    This function performs the following steps:#+
+    1. Extracts closed captions (CC) from a JSON file.#+
+    2. Generates frame-CC pairs from the video.#+
+    3. Sends the frame-CC pairs to a VLM for processing.#+
+    4. Writes the resulting dense vectors to a file.#+
+    5. Optionally stores the data in Pinecone and Neo4j databases.#+
+#+
+    Parameters:#+
+    video_path (str): Path to the input video file.#+
+    CC_json_path (str): Path to the JSON file containing closed captions.#+
+    vlm_endpoint (VLM_EMB): An instance of the VLM_EMB class for processing video frames.#+
+    pinecone_index (pinecone.Index, optional): Pinecone index for vector storage. Defaults to None.#+
+    neo4j_driver (GraphDatabase.driver, optional): Neo4j database driver for graph construction. Defaults to None.#+
+#+
+    Returns:#+
+    None: This function does not return a value but writes results to a file and optionally to databases.#+
+    """#+
+    CC_sequent_raw = extract_cc(CC_json_path)#+
+    print(f"[Finished]: extract_cc. Length of CC in CC_sequent_raw = {len(CC_sequent_raw['CC'])}")#+
+#+
+    extracted_frames, CC_sequent = video_pair_generation(video_path, CC_sequent_raw, interval=100)#+
+    print(f"[Finished]: video_pair_generation. Length of extracted_frames = {len(extracted_frames)}")#+
+#+
+    result = send_to_vlm(extracted_frames, CC_sequent, vlm_endpoint, CC_sequent_raw["background"], True)#+
+    print(f"[Finished]: send_to_vlm. Length of result = {len(result)}")#+
+#+
+    with open("output_results_vec.txt", "w") as f:#+
+        f.write("Generated Dense Vectors:\n")#+
+        for i, vec in enumerate(result):#+
+            f.write(f"Image {i+1}:\n")#+
+            f.write(f"{vec}\n")#+
+#+
+    store_data()#+
+>>>>>>> Tabnine >>>>>>># {"conversationId":"a97db3ea-f857-4d27-9806-8f81a0c0c6cf","source":"instruct"}
 
-    result = send_to_vlm(extracted_frames, CC_sequent, CC_sequent_raw["background"], True)
+    result = send_to_vlm(extracted_frames, CC_sequent, vlm_endpoint, CC_sequent_raw["background"], True)
     print(f"[Finished]: send_to_vlm. Length of result = {len(result)}")
 
-    with open("output_results.txt", "w") as f:
+    with open("output_results_vec.txt", "w") as f:
         f.write("Generated Dense Vectors:\n")
         for i, vec in enumerate(result):
             f.write(f"Image {i+1}:\n")
@@ -293,5 +344,5 @@ if __name__ == '__main__':
     CC_json_path = './test.json'
     # vlm_endpoint = 'http://your-vlm-endpoint.com/api'  # Replace with your VLM endpoint
     # process_video(video_path, vlm_endpoint)
-
-    process_video(video_path=video_path, CC_json_path=CC_json_path)
+    vlm = VLM_EMB()
+    process_video(video_path=video_path, CC_json_path=CC_json_path,vlm_endpoint=vlm)
