@@ -4,11 +4,16 @@ import torch
 
 class VLM_EMB(object):
 
-    def __init__(self, model_path="./model/Qwen2-VL-2B-Instruct",device_map='mps'):
-        self.device_map = device_map
+    def __init__(self, model_path="./model/Qwen2-VL-2B-Instruct"):
+        # Device configuration
+        if torch.backends.mps.is_available():
+            self.device_map = "mps"
+        else:
+            self.device_map = "cuda" if torch.cuda.is_available() else "cpu"
+        
         self.model_path = model_path
         self.model = Qwen2VLForConditionalGeneration.from_pretrained(
-            model_path, torch_dtype=torch.bfloat16, device_map="mps",
+            model_path, torch_dtype=torch.bfloat16, device_map=self.device_map,
         )
         self.min_pixels = 256 * 28 * 28
         self.max_pixels = 1280 * 28 * 28
