@@ -272,46 +272,7 @@ def process_video(video_path,CC_json_path, vlm_endpoint:VLM_EMB,pinecone_index:p
     print(f"[Finished]: video_pair_generation. Length of extracted_frames = {len(extracted_frames)}")
     
     # write an loop that batch of zip  extracted_frames,CC_sequent 
-<<<<<<< Tabnine <<<<<<<
-def process_video(video_path, CC_json_path, vlm_endpoint: VLM_EMB, pinecone_index: pinecone.Index = None, neo4j_driver: GraphDatabase.driver = None):#+
-    """#+
-    Process a video by extracting frames, generating vector embeddings using a Vision Language Model (VLM),#+
-    and optionally storing the results in Pinecone and Neo4j databases.#+
-#+
-    This function performs the following steps:#+
-    1. Extracts closed captions (CC) from a JSON file.#+
-    2. Generates frame-CC pairs from the video.#+
-    3. Sends the frame-CC pairs to a VLM for processing.#+
-    4. Writes the resulting dense vectors to a file.#+
-    5. Optionally stores the data in Pinecone and Neo4j databases.#+
-#+
-    Parameters:#+
-    video_path (str): Path to the input video file.#+
-    CC_json_path (str): Path to the JSON file containing closed captions.#+
-    vlm_endpoint (VLM_EMB): An instance of the VLM_EMB class for processing video frames.#+
-    pinecone_index (pinecone.Index, optional): Pinecone index for vector storage. Defaults to None.#+
-    neo4j_driver (GraphDatabase.driver, optional): Neo4j database driver for graph construction. Defaults to None.#+
-#+
-    Returns:#+
-    None: This function does not return a value but writes results to a file and optionally to databases.#+
-    """#+
-    CC_sequent_raw = extract_cc(CC_json_path)#+
-    print(f"[Finished]: extract_cc. Length of CC in CC_sequent_raw = {len(CC_sequent_raw['CC'])}")#+
-#+
-    extracted_frames, CC_sequent = video_pair_generation(video_path, CC_sequent_raw, interval=100)#+
-    print(f"[Finished]: video_pair_generation. Length of extracted_frames = {len(extracted_frames)}")#+
-#+
-    result = send_to_vlm(extracted_frames, CC_sequent, vlm_endpoint, CC_sequent_raw["background"], True)#+
-    print(f"[Finished]: send_to_vlm. Length of result = {len(result)}")#+
-#+
-    with open("output_results_vec.txt", "w") as f:#+
-        f.write("Generated Dense Vectors:\n")#+
-        for i, vec in enumerate(result):#+
-            f.write(f"Image {i+1}:\n")#+
-            f.write(f"{vec}\n")#+
-#+
-    store_data()#+
->>>>>>> Tabnine >>>>>>># {"conversationId":"a97db3ea-f857-4d27-9806-8f81a0c0c6cf","source":"instruct"}
+
 
     result = send_to_vlm(extracted_frames, CC_sequent, vlm_endpoint, CC_sequent_raw["background"], True)
     print(f"[Finished]: send_to_vlm. Length of result = {len(result)}")
