@@ -10,6 +10,10 @@ import json
 from neo4j import GraphDatabase
 from datetime import datetime
 from numpy.matlib import empty
+from transformers import AutoProcessor, Qwen2VLForConditionalGeneration
+import torch
+from PIL import Image
+
 
 def extract_frames(video_path, output_dir, interval=300):
     """
@@ -53,7 +57,31 @@ def extract_frames(video_path, output_dir, interval=300):
     cap.release()
     return extracted_frames
 
-def send_to_vlm(frame, cc:dict, background:dict, retrun_vec:bool):
+
+model_path = "./model"
+processor = AutoProcessor.from_pretrained(model_path, trust_remote_code=True)
+device = torch.device("mps")
+model = Qwen2VLForConditionalGeneration.from_pretrained(model_path, torch_dtype=torch.float16, device_map=None)
+model = model.to(device)
+
+def process_vision_info(messages):
+    """
+    Process messages to extract image inputs for the VLM model.
+    :param messages: List of batched messages containing image and text inputs.
+    :return: image_inputs (list of image tensors).
+    """
+    image_inputs = []
+    for batch in messages:
+        for message in batch:
+            if "content" in message:
+                for content_item in message["content"]:
+                    if content_item["type"] == "image":
+                        image = Image.open(content_item["image"]).convert("RGB")
+                        image_inputs.append(image)
+    return image_inputs
+
+
+def send_to_vlm(frames: list[dict], ccs: list[dict], background: dict, retrun_vec: bool):
     ## take the frame, take the background, take the CC 
     # prompt enhancement
     # prompt = "" img + text
@@ -73,14 +101,62 @@ def send_to_vlm(frame, cc:dict, background:dict, retrun_vec:bool):
 
     # send to vlm model and get the vector
 
-    vec = [0.0,0.0,0.0,0.0,0.0,0]
-    vlm_answer = ""
-    if retrun_vec : 
-        return vec
-    else:
-        return vlm_answer
+    if len(frames) != len(ccs):
+        raise ValueError("The length of frames and ccs must match.")
     
+    images = []
+    prompts = []
+    for frame, cc in zip(frames, ccs):
+        image = cv2.imread(frame["frame_path"])
+        if image is None:
+            raise FileNotFoundError(f"Cannot load image from path: {frame['frame_path']}")
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        image_pil = Image.fromarray(image)
+        images.append(image_pil)
+        
+        cc_text = cc.get("cc_text", "No subtitle provided.")
+        selected_background = {
+            key: background.get(key, "N/A") 
+            for key in ["Program_Title", "Comment", "Duration"]
+        }
+        background_info = "; ".join([f"{key}: {value}" for key, value in selected_background.items()])
+        prompt = (
+            f"Analyze the image at timestamp {frame['timestamp']} seconds in a video.\n"
+            f"Subtitle: {cc_text}\n"
+            f"Background Info: {background_info}\n"
+            f"Provide summary."
+        )
+        prompts.append(prompt)
 
+    for image in images:
+        if not isinstance(image, Image.Image):
+            raise ValueError("One of the images is not a valid PIL Image.")
+
+    if not all(isinstance(prompt, str) and len(prompt) > 0 for prompt in prompts):
+        raise ValueError("Invalid prompts: Ensure all prompts are non-empty strings.")
+    
+    inputs = processor(
+        text=prompts,
+        images=images,
+        return_tensors="pt",
+        padding=True,
+    ).to(device)
+
+    with torch.no_grad():
+        if retrun_vec:
+            outputs = model(**inputs, output_hidden_states=True)
+            last_hidden_state = outputs.last_hidden_state  # (batch_size, seq_len, hidden_dim)
+            vectors = last_hidden_state.mean(dim=1).cpu().numpy()
+            results = [{"frame_path": frame["frame_path"], "vector": vector} 
+                       for frame, vector in zip(frames, vectors)]
+        else:
+            generated_ids = model.generate(**inputs, max_new_tokens=128)
+            output_texts = processor.batch_decode(generated_ids, skip_special_tokens=True)
+            results = [{"frame_path": frame["frame_path"], "text": text} 
+                       for frame, text in zip(frames, output_texts)]
+    
+    return results
+    
 
 # def store_vector_in_pinecone(vector, vector_id):
 #     """
@@ -101,7 +177,7 @@ def parse_time(time_str) -> datetime:
     return datetime.strptime(time_str, time_format)
 
 
-def video_pair_generation(video_path, CC_sequence, interval:300, tag:bool) -> tuple[list]:
+def video_pair_generation(video_path, CC_sequence, interval:int = 300, tag:bool = True) -> tuple[list]:
     # time frame alignment need 
     # with the give interval ................
     # cc "PrimaryTag" can use as segmentation
@@ -112,6 +188,7 @@ def video_pair_generation(video_path, CC_sequence, interval:300, tag:bool) -> tu
     
     output_dir = "./frames"
     vid_frames = extract_frames(video_path, output_dir, interval=interval)
+    print(f"[Finished]: extract_frames. Length of vid_frames = {len(vid_frames)}")
 
     cc_seq_data = []
     raw_cc_data = CC_sequence["CC"]
@@ -124,7 +201,8 @@ def video_pair_generation(video_path, CC_sequence, interval:300, tag:bool) -> tu
         # Update the CC index to the closest matching CC
         while cc_index < len(raw_cc_data):
             cc_end_time = parse_time(raw_cc_data[cc_index]["EndTime"])
-            if frame_time > cc_end_time - video_start_time:
+            cc_primary_tag = raw_cc_data[cc_index]["PrimaryTag"]
+            if frame_time > (cc_end_time - video_start_time).total_seconds() or "SEG" in cc_primary_tag:
                 cc_index += 1
             else:
                 break
@@ -134,7 +212,7 @@ def video_pair_generation(video_path, CC_sequence, interval:300, tag:bool) -> tu
         cc_end_time = parse_time(raw_cc_data[cc_index]["EndTime"])
         matching_cc = (
             raw_cc_data[cc_index]
-            if cc_index < len(raw_cc_data) and cc_start_time - video_start_time <= frame_time <= cc_end_time - video_start_time
+            if cc_index < len(raw_cc_data) and (cc_start_time - video_start_time).total_seconds() <= frame_time <= (cc_end_time - video_start_time).total_seconds()
             else None
         )
 
@@ -216,18 +294,21 @@ def store_data():
 
     return
 
-def process_video(video_path,CC_json_path, vlm_endpoint,pinecone_index:pinecone.Index, neo4j_driver:GraphDatabase.driver):
+def process_video(video_path,CC_json_path, vlm_endpoint=None,pinecone_index:pinecone.Index=None, neo4j_driver:GraphDatabase.driver=None):
     """
     Process the video to extract frames, send them to VLM, 
     and store vectors in Pinecone, neo4j for graph construction
     """
     CC_sequent_raw = extract_cc(CC_json_path)
+    print(f"[Finished]: extract_cc. Length of CC in CC_sequent_raw = {len(CC_sequent_raw['CC'])}")
 
-    extracted_frames,CC_sequent = video_pair_generation(video_path, CC_sequent_raw)
+    extracted_frames, CC_sequent = video_pair_generation(video_path, CC_sequent_raw)
+    print(f"[Finished]: video_pair_generation. Length of extracted_frames = {len(extracted_frames)}")
     
     # write an loop that batch of zip  extracted_frames,CC_sequent 
 
-    result = send_to_vlm()
+    result = send_to_vlm(extracted_frames, CC_sequent, CC_sequent_raw["background"], True)
+    print(f"[Finished]: send_to_vlm. Length of result = {len(result)}")
 
     # send to database:
     # store in pinecone
@@ -242,8 +323,9 @@ def process_video(video_path,CC_json_path, vlm_endpoint,pinecone_index:pinecone.
 
 # Example usage
 if __name__ == '__main__':
-    # video_path = 'your_video.mp4'
+    video_path = './test.mp4'
+    CC_json_path = './test.json'
     # vlm_endpoint = 'http://your-vlm-endpoint.com/api'  # Replace with your VLM endpoint
     # process_video(video_path, vlm_endpoint)
 
-    process_video()
+    process_video(video_path=video_path, CC_json_path=CC_json_path)
