@@ -13,6 +13,10 @@ from numpy.matlib import empty
 from transformers import AutoProcessor, Qwen2VLForConditionalGeneration
 import torch
 from PIL import Image
+from vlm import VLM_EMB
+
+
+vlm = VLM_EMB()
 
 
 def extract_frames(video_path, output_dir, interval=300):
@@ -58,12 +62,6 @@ def extract_frames(video_path, output_dir, interval=300):
     return extracted_frames
 
 
-model_path = "./model"
-processor = AutoProcessor.from_pretrained(model_path, trust_remote_code=True)
-device = torch.device("mps")
-model = Qwen2VLForConditionalGeneration.from_pretrained(model_path, torch_dtype=torch.float16, device_map=None)
-model = model.to(device)
-
 def send_to_vlm(frames: list[dict], ccs: list[dict], background: dict, retrun_vec: bool):
     ## take the frame, take the background, take the CC 
     # prompt enhancement
@@ -87,15 +85,13 @@ def send_to_vlm(frames: list[dict], ccs: list[dict], background: dict, retrun_ve
     if len(frames) != len(ccs):
         raise ValueError("The length of frames and ccs must match.")
     
-    images = []
-    prompts = []
+    image_path_list = []
+    text_prompt_list = []
     for frame, cc in zip(frames, ccs):
-        image = cv2.imread(frame["frame_path"])
-        if image is None:
+        image_path = frame["frame_path"]
+        if image_path is None:
             raise FileNotFoundError(f"Cannot load image from path: {frame['frame_path']}")
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        image_pil = Image.fromarray(image)
-        images.append(image_pil)
+        image_path_list.append(image_path)
         
         cc_text = cc.get("cc_text", "No subtitle provided.")
         selected_background = {
@@ -103,42 +99,18 @@ def send_to_vlm(frames: list[dict], ccs: list[dict], background: dict, retrun_ve
             for key in ["Program_Title", "Comment", "Duration"]
         }
         background_info = "; ".join([f"{key}: {value}" for key, value in selected_background.items()])
-        prompt = (
+        text_prompt = (
             f"Analyze the image at timestamp {frame['timestamp']} seconds in a video.\n"
             f"Subtitle: {cc_text}\n"
             f"Background Info: {background_info}\n"
             f"Provide summary."
         )
-        prompts.append(prompt)
-
-    for image in images:
-        if not isinstance(image, Image.Image):
-            raise ValueError("One of the images is not a valid PIL Image.")
-
-    if not all(isinstance(prompt, str) and len(prompt) > 0 for prompt in prompts):
-        raise ValueError("Invalid prompts: Ensure all prompts are non-empty strings.")
+        text_prompt_list.append(text_prompt)
     
-    inputs = processor(
-        text=prompts,
-        images=images,
-        return_tensors="pt",
-        padding=True,
-    ).to(device)
-
-    with torch.no_grad():
-        if retrun_vec:
-            outputs = model(**inputs, output_hidden_states=True)
-            last_hidden_state = outputs.last_hidden_state  # (batch_size, seq_len, hidden_dim)
-            vectors = last_hidden_state.mean(dim=1).cpu().numpy()
-            results = [{"frame_path": frame["frame_path"], "vector": vector} 
-                       for frame, vector in zip(frames, vectors)]
-        else:
-            generated_ids = model.generate(**inputs, max_new_tokens=128)
-            output_texts = processor.batch_decode(generated_ids, skip_special_tokens=True)
-            results = [{"frame_path": frame["frame_path"], "text": text} 
-                       for frame, text in zip(frames, output_texts)]
-    
-    return results
+    if retrun_vec:
+        return vlm.generate_dense_vector(image_path_list, text_prompt_list)
+    else:
+        return vlm.generate_text(image_path_list, text_prompt_list)
     
 
 # def store_vector_in_pinecone(vector, vector_id):
@@ -292,6 +264,17 @@ def process_video(video_path,CC_json_path, vlm_endpoint=None,pinecone_index:pine
 
     result = send_to_vlm(extracted_frames, CC_sequent, CC_sequent_raw["background"], True)
     print(f"[Finished]: send_to_vlm. Length of result = {len(result)}")
+
+    with open("output_results.txt", "w") as f:
+        f.write("Generated Dense Vectors:\n")
+        for i, vec in enumerate(result):
+            f.write(f"Image {i+1}:\n")
+            f.write(f"{vec}\n")
+
+        #f.write("\nGenerated Texts:\n")
+        #for i, text in enumerate(text_res):
+        #    f.write(f"Image {i+1}:\n")
+        #    f.write(f"{text}\n")
 
     # send to database:
     # store in pinecone
