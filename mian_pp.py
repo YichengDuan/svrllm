@@ -64,23 +64,6 @@ device = torch.device("mps")
 model = Qwen2VLForConditionalGeneration.from_pretrained(model_path, torch_dtype=torch.float16, device_map=None)
 model = model.to(device)
 
-def process_vision_info(messages):
-    """
-    Process messages to extract image inputs for the VLM model.
-    :param messages: List of batched messages containing image and text inputs.
-    :return: image_inputs (list of image tensors).
-    """
-    image_inputs = []
-    for batch in messages:
-        for message in batch:
-            if "content" in message:
-                for content_item in message["content"]:
-                    if content_item["type"] == "image":
-                        image = Image.open(content_item["image"]).convert("RGB")
-                        image_inputs.append(image)
-    return image_inputs
-
-
 def send_to_vlm(frames: list[dict], ccs: list[dict], background: dict, retrun_vec: bool):
     ## take the frame, take the background, take the CC 
     # prompt enhancement
