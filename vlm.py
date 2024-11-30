@@ -37,6 +37,14 @@ class VLM_EMB(object):
         return messages
 
     def generate_dense_vector(self, image_path_list:list, text_prompt_list:list)->list[list]:
+        """
+        Generate dense vectors for given image paths and text prompts.
+
+        :param image_path_list: A list of paths to images for which the text prompts are provided.
+        :param text_prompt_list: A list of text prompts describing the context for processing.
+        
+        :return: A list of dense vectors for the given images and text prompts.
+        """
         messages = []
         for img_p, txt in zip(image_path_list,text_prompt_list):
             messages.append(self.build_message(img_p,txt))
@@ -68,6 +76,15 @@ class VLM_EMB(object):
         return average_embeddings
     
     def generate_text(self, image_path_list:list, text_prompt_list:list)->list[str]:
+        """
+        Generate text for given image paths and text prompts.
+
+        :param image_path_list: A list of paths to images for which the text prompts are provided.
+        :param text_prompt_list: A list of text prompts describing the context for processing.
+
+        :return: A list of generated text for the given images and text prompts.
+        """
+
         messages = []
         for img_p, txt in zip(image_path_list,text_prompt_list):
             messages.append(self.build_message(img_p,txt))
@@ -100,7 +117,7 @@ class VLM_EMB(object):
         return output_texts
     
 if __name__ == "__main__":
-    
+
     my_vlm = VLM_EMB()
 
     image_path_list = ["./frames/frame_8990.jpg", "./frames/frame_17980.jpg",]
