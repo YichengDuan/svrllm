@@ -15,7 +15,7 @@ import torch
 from PIL import Image
 from vlm import VLM_EMB
 from tqdm import tqdm
-
+from config import pinecone_index
 
 def extract_frames_opencv(video_path, output_dir, interval=300):
     """
@@ -260,7 +260,20 @@ def store_data():
 
     return
 
-def process_video(video_path,CC_json_path, vlm_endpoint:VLM_EMB,pinecone_index:pinecone.Index=None, neo4j_driver:GraphDatabase.driver=None):
+def force_inster(vec:list,attrs:list,pinecone_index:pinecone.Index):
+    up_dict_list = []
+    for _v, f_attr in zip(vec,attrs):
+        up_dict = {
+            "id": f_attr.get("frame_path","NN"),
+            "values": _v
+        }
+        up_dict_list.append(up_dict)
+  
+    pinecone_index.upsert(vectors=up_dict_list)
+    return
+
+
+def process_video(video_path,CC_json_path, vlm_endpoint:VLM_EMB,pinecone_index:pinecone.Index=pinecone_index, neo4j_driver:GraphDatabase.driver=None):
     """
     Process the video to extract frames, send them to VLM, 
     and store vectors in Pinecone, neo4j for graph construction
@@ -277,22 +290,24 @@ def process_video(video_path,CC_json_path, vlm_endpoint:VLM_EMB,pinecone_index:p
     result = send_to_vlm(extracted_frames, CC_sequent, vlm_endpoint, CC_sequent_raw["background"], True)
     print(f"[Finished]: send_to_vlm. Length of result = {len(result)}")
 
-    with open("output_results_vec.txt", "w") as f:
-        f.write("Generated Dense Vectors:\n")
-        for i, vec in enumerate(result):
-            f.write(f"Image {i+1}:\n")
-            f.write(f"{vec}\n")
+    # with open("output_results_text.txt", "w") as f:
+    # #     f.write("Generated Dense Vectors:\n")
+    # #     for i, vec in enumerate(result):
+    # #         f.write(f"Image {i+1}:\n")
+    # #         f.write(f"{vec}\n")
 
-        #f.write("\nGenerated Texts:\n")
-        #for i, text in enumerate(text_res):
-        #    f.write(f"Image {i+1}:\n")
-        #    f.write(f"{text}\n")
+    #     f.write("\nGenerated Texts:\n")
+    #     for i, text in enumerate(result):
+    #        f.write(f"Image {i+1}:\n")
+    #        f.write(f"{text}\n")
 
     # send to database:
     # store in pinecone
     # store in neo4j
 
-    store_data()
+    # store_data()
+    # force_inster(vec=result,attrs=extracted_frames,pinecone_index=pinecone_index)    
+    print("B F")
     # for idx, frame_path in enumerate(extracted_frames):
     #     vector = send_to_vlm(frame_path, vlm_endpoint)
     #     if vector:
