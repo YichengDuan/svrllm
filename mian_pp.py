@@ -15,7 +15,7 @@ from transformers import AutoProcessor, Qwen2VLForConditionalGeneration
 import torch
 from PIL import Image
 
-from util import create_neo4j_node, disconnect_neo4j, store_vector_in_pinecone
+from util import create_neo4j_node, store_vector_in_pinecone
 from vlm import VLM_EMB
 from tqdm import tqdm
 from config import pinecone_index,neo4j_driver
@@ -255,9 +255,10 @@ def store_data(frame_list,cc_list,vector_list,name_spaces=None):
     for index in range(len(frame_list)):
         # store the frame_path, timestamp (from frame_list), and cc_text, primary_tag (from cc_list) into neo4j
         data = {"frame_path": frame_list[index]["frame_path"], "timestamp": frame_list[index]["timestamp"], "cc_text": cc_list[index]["cc_text"], "primary_tag": cc_list[index]["primary_tag"]}
-        neo4j_id = create_neo4j_node(neo4j_session, data=data, last_node_id=last_node_id)
+        current_node_id = create_neo4j_node(neo4j_session, data=data, last_node_id=last_node_id)
         # store the vector into Pinecone
-        store_vector_in_pinecone(pinecone_index,vector_list[index], neo4j_id,name_spaces)
+        store_vector_in_pinecone(pinecone_index,vector_list[index], current_node_id,name_spaces)
+        last_node_id = current_node_id  # update the last_node_id for the next iteration
         result += 1
     return result
 
