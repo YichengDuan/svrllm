@@ -18,19 +18,18 @@ neo4j_driver = GraphDatabase.driver(neo4j_uri, auth=(neo4j_user, neo4j_password)
 with GraphDatabase.driver(neo4j_uri, auth=(neo4j_user, neo4j_password)) as driver:
     driver.verify_connectivity()
 
-
 pinecone_client = Pinecone(
     api_key=config.get('pinecone_api_key',"")
 )
 
-# usage Now do stuff
-# if 'video' not in pc.list_indexes().names():
-#     pc.create_index(
-#         name='video', 
-#         dimension=1536, 
-#         metric='cosine',
-#         spec=ServerlessSpec(
-#             cloud='aws',
-#             region='us-west-2'
-#         )
-#     )
+if 'video' not in pinecone_client.list_indexes().names():
+    pinecone_client.create_index(
+        name='video', 
+        dimension=1536, 
+        metric='cosine',
+        spec=ServerlessSpec(
+            cloud='aws',
+            region='us-east-1'
+        )
+    )
+pinecone_index = pinecone_client.Index("video")
