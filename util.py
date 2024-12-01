@@ -13,18 +13,19 @@ def create_neo4j_node(session, data , last_node_id=None):
             frame_path: $frame_path,
             timestamp: $timestamp,
             cc_text: $cc_text,
-            primary_tag: $primary_tag})
-            RETURN id(v) AS node_id
+            primary_tag: $primary_tag,
+            node_id: randomUUID()  })
+            RETURN v.node_id AS node_id 
+             
         """
     result = session.run(query, frame_path=frame_path, timestamp=timestamp, cc_text=cc_text, primary_tag=primary_tag)
     current_node_id = result.single()["node_id"]
 
     if last_node_id is not None:
         query = """
-              MATCH (v1:Vector), (v2:Vector)
-              WHERE id(v1) = $id1 AND id(v2) = $id2
+            MATCH (v1:data {node_id: $id1}), (v2:data {node_id: $id2})
               CREATE (v1)-[:CONNECTED_TO]->(v2)
-              """
+                """
         session.run(query, id1=last_node_id, id2=current_node_id)
     return current_node_id
 
