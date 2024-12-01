@@ -2,17 +2,11 @@
 
 # Video preprocessing with multiprocessing 
 import cv2
-import numpy as np
-import requests
 import os
 import pinecone  # Import the Pinecone client
 import json
 from neo4j import GraphDatabase
 from datetime import datetime
-from numpy.matlib import empty
-from transformers import AutoProcessor, Qwen2VLForConditionalGeneration
-import torch
-from PIL import Image
 from vlm import VLM_EMB
 from tqdm import tqdm
 
@@ -97,12 +91,22 @@ def send_to_vlm(frames: list[dict], ccs: list[dict],vlm:VLM_EMB, background: dic
             key: background.get(key, "N/A") 
             for key in ["Program_Title", "Comment", "Duration"]
         }
-        background_info = "; ".join([f"{key}: {value}" for key, value in selected_background.items()])
+        # background_info = "; ".join([f"{key}: {value}" for key, value in selected_background.items()])
+        # text_prompt = (
+        #     f"Analyze the image at timestamp {frame['timestamp']} seconds in a video.\n"
+        #     f"Subtitle: {cc_text}\n"
+        #     f"Background Info: {background_info}\n"
+        #     f"Provide summary."
+        # )
         text_prompt = (
-            f"Analyze the image at timestamp {frame['timestamp']} seconds in a video.\n"
-            f"Subtitle: {cc_text}\n"
-            f"Background Info: {background_info}\n"
-            f"Provide summary."
+            f"This is a news frame extracted from a program. \n"
+            f"Program Title: {selected_background['Program_Title']}\n"
+            f"Comment: {selected_background['Comment']}\n"
+            f"Program Duration: {selected_background['Duration']}\n"
+
+            f"Frame Timestamp: {frame['timestamp']} s\n"
+            f"Subtitle at this timestamp: '{cc_text}'\n"
+            f"Task: Summarize the key event depicted in this frame based on the subtitle and the program background. Also include the frame timestamp in your response.\n"
         )
         text_prompt_list.append(text_prompt)
     
