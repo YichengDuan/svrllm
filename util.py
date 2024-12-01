@@ -20,7 +20,6 @@ def create_neo4j_node(session, data , last_node_id=None):
         """
     result = session.run(query, frame_path=frame_path, timestamp=timestamp, cc_text=cc_text, primary_tag=primary_tag)
     current_node_id = result.single()["node_id"]
-
     if last_node_id is not None:
         query = """
             MATCH (v1:data {node_id: $id1}), (v2:data {node_id: $id2})
