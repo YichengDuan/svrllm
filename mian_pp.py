@@ -320,6 +320,7 @@ def process_video(video_path,CC_json_path, vlm_endpoint:VLM_EMB,pinecone_index:p
     #         store_vector_in_pinecone(vector, f"frame-{idx}")
     #         print(f"Processed {frame_path}, vector stored in Pinecone.")
 
+
 # Example usage
 if __name__ == '__main__':
     video_path = './test.mp4'
