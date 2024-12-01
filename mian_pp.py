@@ -10,12 +10,15 @@ import json
 from neo4j import GraphDatabase
 from datetime import datetime
 from numpy.matlib import empty
+from pinecone import Pinecone
 from transformers import AutoProcessor, Qwen2VLForConditionalGeneration
 import torch
 from PIL import Image
+
+from util import create_neo4j_node, disconnect_neo4j, store_vector_in_pinecone
 from vlm import VLM_EMB
 from tqdm import tqdm
-from config import pinecone_index
+from config import pinecone_index,neo4j_driver
 
 def extract_frames_opencv(video_path, output_dir, interval=300):
     """
@@ -119,21 +122,6 @@ def send_to_vlm(frames: list[dict], ccs: list[dict],vlm:VLM_EMB, background: dic
         
 
     
-    
-
-# def store_vector_in_pinecone(vector, vector_id):
-#     """
-#     Store the vector in the Pinecone index.
-    
-#     :param vector: The vector to store.
-#     :param vector_id: Unique ID for the vector.
-#     """
-#     try:
-#         pinecone_index.upsert([(vector_id, vector)])
-#         print(f"Vector stored in Pinecone with ID: {vector_id}")
-#     except Exception as e:
-#         print(f"Error storing vector in Pinecone: {e}")
-
 
 def parse_time(time_str) -> datetime:
     time_format = "%Y%m%d%H%M%S.%f"
@@ -254,11 +242,24 @@ def extract_cc(CC_json_path:str)-> dict:
                 print(f"Error decoding JSON line: {line}, error: {e}")
     return cc_data
     
-def store_data():
-    # node <-> vec pair
-
-
-    return
+def store_data(frame_list,cc_list,vector_list,name_spaces=None):
+    """
+    Store data in Pinecone and Neo4j.
+    each element in vector_list is a dictionary including data and vectors.
+    fo each running, the function will get the data of one single vector.
+    """
+    result = 0
+    # initiate the Neo4j session
+    neo4j_session = neo4j_driver.session()
+    last_node_id = None
+    for index in range(len(frame_list)):
+        # store the frame_path, timestamp (from frame_list), and cc_text, primary_tag (from cc_list) into neo4j
+        data = {"frame_path": frame_list[index]["frame_path"], "timestamp": frame_list[index]["timestamp"], "cc_text": cc_list[index]["cc_text"], "primary_tag": cc_list[index]["primary_tag"]}
+        neo4j_id = create_neo4j_node(neo4j_session, data=data, last_node_id=last_node_id)
+        # store the vector into Pinecone
+        store_vector_in_pinecone(pinecone_index,vector_list[index], neo4j_id,name_spaces)
+        result += 1
+    return result
 
 def force_inster(vec:list,attrs:list,pinecone_index:pinecone.Index):
     up_dict_list = []
@@ -281,14 +282,18 @@ def process_video(video_path,CC_json_path, vlm_endpoint:VLM_EMB,pinecone_index:p
     CC_sequent_raw = extract_cc(CC_json_path)
     print(f"[Finished]: extract_cc. Length of CC in CC_sequent_raw = {len(CC_sequent_raw['CC'])}")
 
+
     extracted_frames, CC_sequent = video_pair_generation(video_path, CC_sequent_raw,interval=100)
     print(f"[Finished]: video_pair_generation. Length of extracted_frames = {len(extracted_frames)}")
-    
-    # write an loop that batch of zip  extracted_frames,CC_sequent 
 
+    # write an loop that batch of zip  extracted_frames,CC_sequent
 
     result = send_to_vlm(extracted_frames, CC_sequent, vlm_endpoint, CC_sequent_raw["background"], True)
     print(f"[Finished]: send_to_vlm. Length of result = {len(result)}")
+    # define the name spaces
+    video_name = CC_sequent_raw["background"]["FileName"]
+    db_return_result = store_data(extracted_frames,CC_sequent,result, name_spaces=video_name)
+    print(f"[Finished]: store_data. Length of result = {db_return_result}")
 
     # with open("output_results_text.txt", "w") as f:
     # #     f.write("Generated Dense Vectors:\n")
