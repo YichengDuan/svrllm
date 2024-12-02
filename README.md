@@ -72,17 +72,21 @@ The project architecture is designed to process videos and their associated prom
    ```
 2. Install dependencies:
    ```bash
-   cd video-retrieval-enhancement
+   cd SVRLLM
    pip install -r requirements.txt
    ```
 3. Configure environment variables:
-   - Configure any required API keys, database credentials, or model paths in a `.env` file.
+   - Configure any required API keys, database credentials in a `.config.yaml` file.
 
 4. Run the project:
+    processing video
    ```bash
-   python main.py
+   python test_main.py
    ```
-
+    retrival testing
+    ```bash
+   python retrival.py
+   ```
 ---
 
 ## Usage
