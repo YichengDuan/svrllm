@@ -30,7 +30,7 @@ The project architecture is designed to process videos and their associated prom
 
 4. **Retrieval and Storage:**
     - **VectorDB:** The processed data is stored in a Vector Database (VectorDB) for fast similarity search and retrieval.
-    - **Video File System:** Subsequent retrieved video results are stored in a structured video file system for easy access and retrieval.
+    - **Graph DB** Subsequent retrieved video results are stored in a structured Graph Database for easy access and retrieval.
 
 5. **Output Generation:**
     - **Answer/Summary:** Generates a summary or response based on the retrieved subsequent videos.
@@ -52,6 +52,9 @@ The project architecture is designed to process videos and their associated prom
 6. **Output Generation:**
     - A final summary or answer is provided based on the retrieved content.
 
+---
+## TODO:
+- Implement the Output Generation (Answer/Summary) stage.
 ---
 
 ## Technology Stack
