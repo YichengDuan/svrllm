@@ -6,10 +6,12 @@
 import cv2
 from config import pinecone_client, neo4j_driver, pinecone_index
 from vlm import VLM_EMB
+import os
+from tqdm import tqdm
 
-my_vlm = VLM_EMB()
+VLM_BACKEND = VLM_EMB()
 
-def input_preprocess(img_path='./frames/frame_1200s.jpg', prompt="what is this story about?", strength = 2, top_k = 3):
+def input_preprocess(img_path='./frames/frame_1200s.jpg', prompt="what is this story about?", strength = 1, top_k = 3):
     """
     :param img_path: path to the image
     :param prompt: user prompt for image description
@@ -19,7 +21,7 @@ def input_preprocess(img_path='./frames/frame_1200s.jpg', prompt="what is this s
              the format: a list of k_top parts(dict) containing three dictionaries:
              self(the target result itself), previous(pre n_th node), and next(next n_th node) where n_th is defined by strength
     """
-    res_vec = my_vlm.generate_dense_vector([img_path],[""])[0]
+    res_vec = VLM_BACKEND.generate_dense_vector([img_path],[""])[0]
     # get all the namespaces in pinecone index
     stats = pinecone_index.describe_index_stats()
     namespaces = list(stats["namespaces"].keys())
@@ -60,8 +62,6 @@ def input_preprocess(img_path='./frames/frame_1200s.jpg', prompt="what is this s
         results.append(result)
     return results
 
-print(input_preprocess())
-
 def extract_frame(video_path, time_sec, output_image_path):
     """
     Extracts a frame from the video at the specified time and saves it as an image.
@@ -75,7 +75,7 @@ def extract_frame(video_path, time_sec, output_image_path):
         bool: True if frame extraction was successful, False otherwise.
     """
     # Open the video file
-    vidcap = cv2.VideoCapture(video_path)
+    vidcap = cv2.VideoCapture(video_path,cv2.CAP_AVFOUNDATION)
     if not vidcap.isOpened():
         print("Error: Cannot open video file.")
         return False
@@ -108,14 +108,85 @@ def extract_frame(video_path, time_sec, output_image_path):
 
     # Save the frame as an image file
     cv2.imwrite(output_image_path, image)
-    print(f"Frame saved at {output_image_path}")
-
     # Release the video capture object
     vidcap.release()
     return True
 
-def retrieve_method(target_sec=1200.0):
-    output_image_path = "./frames/target_img"
-    extract_frame(video_path="",time_sec=target_sec,output_image_path=output_image_path)
-    result = input_preprocess(img_path=output_image_path)
-    return
+def retrieve_method(video_path,strength=1,target_sec=1250.0,total_time=3600.0):
+    output_image_path = "./frames/target_img.jpg"
+
+    extract_frame(video_path=video_path,time_sec=target_sec,output_image_path=output_image_path)
+    result = input_preprocess(img_path=output_image_path,strength=strength)
+    # print(result)
+    total_results = []
+    for _hit in result:
+        if len(_hit['next']) == 0:
+            tmp_end = total_time
+        else:
+            tmp_end = _hit['next'][-1]['timestamp']
+        if len(_hit['previous']) == 0:
+            tmp_start = 0
+        else:
+            tmp_start = _hit['previous'][-1]['timestamp']
+        video_name = _hit['namespace']
+        total_results.append({'start':tmp_start, 'end':tmp_end, 'name':video_name})
+    return total_results
+
+if __name__ == "__main__":
+    video_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),"data/2023-01-01_1800_US_CNN_CNN_Newsroom_With_Fredricka_Whitfield.mp4")
+    print("test on 1250s")
+    
+    cap = cv2.VideoCapture(video_path,cv2.CAP_AVFOUNDATION)
+    if not cap.isOpened():
+        raise FileNotFoundError(f"Cannot open video file: {video_path}")
+
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    duration = total_frames / fps
+    cap.release()
+    total_results = retrieve_method(video_path = video_path,total_time=duration)
+    print(total_results)
+    print("="*100)
+    print(f"Best range is at start: {total_results[0]['start']}s, end {total_results[0]['end']}s, in video name: {total_results[0]['name']}")
+
+    test_range = range(0,3500,50)
+
+    for _S in range(1,4):
+         # Initialize counters
+        correct = 0
+        total_count = 0
+
+        TP = 0  # True Positives
+    
+        FN = 0  # False Negatives
+        # Define a tolerance 
+        strength = 1
+        for _sec in tqdm(test_range, desc=f"testing strength={_S}"):
+            if _sec % 100 == 0:
+                continue
+                
+            total_results = retrieve_method(video_path=video_path,strength=_S, target_sec=float(_sec),total_time=duration)
+            
+            # Prediction: Check if the predicted range includes the target second
+            predicted_start = total_results[0]['start']
+            predicted_end = total_results[0]['end']
+            prediction = predicted_start <= _sec <= predicted_end
+
+            # Ground Truth
+            event_occurs = True
+
+            # Update counts based on prediction and ground truth
+            if prediction:
+                if event_occurs:
+                    TP += 1  # True Positive: Correctly predicted event occurrence
+            else:
+                if event_occurs:
+                    FN += 1  # False Negative: Missed actual event occurrence
+
+            total_count += 1
+    
+        recall = TP / total_count if total_count else 0       # True Positive Rate
+        print(f"Recall strength={_S} at (True Positive Rate): {round(recall * 100, 2)}%")
+
+
+    

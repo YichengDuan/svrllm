@@ -24,7 +24,7 @@ def extract_frames_opencv(video_path, output_dir, interval=300):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    cap = cv2.VideoCapture(video_path)
+    cap = cv2.VideoCapture(video_path,cv2.CAP_ANY)
     if not cap.isOpened():
         raise FileNotFoundError(f"Cannot open video file: {video_path}")
 
@@ -58,22 +58,6 @@ def extract_frames_opencv(video_path, output_dir, interval=300):
 
 def send_to_vlm(frames: list[dict], ccs: list[dict],vlm:VLM_EMB, background: dict, retrun_vec: bool,batch_size=2):
     ## take the frame, take the background, take the CC 
-    # prompt enhancement
-    # prompt = "" img + text
-    #   messages = [
-        # {
-        #     "role": "user",
-        #     "content": [
-        #         {
-        #             "type": "image",
-        #             "image": "https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-VL/assets/demo.jpeg",
-        #         },
-        #         {"type": "text", "text": "Is there a dog? Only anwser yes or no"},
-        #         # 可改
-        #     ],
-        # }
-    # ]
-
     # send to vlm model and get the vector
 
     if len(frames) != len(ccs):
