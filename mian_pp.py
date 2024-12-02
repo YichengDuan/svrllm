@@ -244,7 +244,7 @@ def extract_cc(CC_json_path:str)-> dict:
                 print(f"Error decoding JSON line: {line}, error: {e}")
     return cc_data
     
-def store_data(frame_list,cc_list,vector_list,name_spaces=None):
+def store_data(frame_list,pinecone_index,neo4j_driver,cc_list,vector_list,name_spaces=None):
     """
     Store data in Pinecone and Neo4j.
     each element in vector_list is a dictionary including data and vectors.
@@ -277,7 +277,7 @@ def force_inster(vec:list,attrs:list,pinecone_index:pinecone.Index):
     return
 
 
-def process_video(video_path,CC_json_path, vlm_endpoint:VLM_EMB,pinecone_index:pinecone.Index=pinecone_index, neo4j_driver:GraphDatabase.driver=None):
+def process_video(video_path,CC_json_path, vlm_endpoint:VLM_EMB,pinecone_index:pinecone.Index=pinecone_index, neo4j_driver:GraphDatabase.driver=neo4j_driver):
     """
     Process the video to extract frames, send them to VLM, 
     and store vectors in Pinecone, neo4j for graph construction
@@ -295,7 +295,7 @@ def process_video(video_path,CC_json_path, vlm_endpoint:VLM_EMB,pinecone_index:p
     print(f"[Finished]: send_to_vlm. Length of result = {len(result)}")
     # define the name spaces
     video_name = CC_sequent_raw["background"]["FileName"]
-    db_return_result = store_data(extracted_frames,CC_sequent,result, name_spaces=video_name)
+    db_return_result = store_data(extracted_frames,pinecone_index,neo4j_driver,CC_sequent,result, name_spaces=video_name)
     print(f"[Finished]: store_data. Length of result = {db_return_result}")
 
     # with open("output_results_text.txt", "w") as f:
