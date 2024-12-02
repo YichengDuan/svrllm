@@ -9,7 +9,7 @@ from vlm import VLM_EMB
 
 my_vlm = VLM_EMB()
 
-def input_preprocess(img_path='./frames/frame_1200s.jpg', prompt="what is this story about?", strength = 5, top_k = 3):
+def input_preprocess(img_path='./frames/frame_1200s.jpg', prompt="what is this story about?", strength = 2, top_k = 3):
     """
     :param img_path: path to the image
     :param prompt: user prompt for image description
@@ -32,28 +32,31 @@ def input_preprocess(img_path='./frames/frame_1200s.jpg', prompt="what is this s
     for match in res["matches"]:
         vec_id = match["id"]
         # # find the relevant data for each result, extend the result
-        query = f"""
+        query1 = f"""
                     MATCH (v:data)
                     WHERE v.node_id = $node_id
-                    RETURN 'self' AS direction, v AS node
-                
-                    UNION
-                
+                    RETURN v AS node
+                 """
+        self_result = neo4j_session.run(query1, node_id=vec_id).data()
+        query2 = f"""        
                     MATCH (v:data)<-[:CONNECTED_TO*1..{strength}]-(n:data)
                     WHERE v.node_id = $node_id
-                    RETURN 'previous' AS direction, n AS node
+                    RETURN n AS node
                     ORDER BY n.timestamp DESC
                     LIMIT {strength}
-                
-                    UNION
-                
-                    MATCH (v:data)-[:CONNECTED_TO*1..{strength}]->(m:data)
-                    WHERE v.node_id = $node_id
-                    RETURN 'next' AS direction, m AS node
-                    ORDER BY m.timestamp ASC
-                    LIMIT {strength};
-                 """
-        result = neo4j_session.run(query, node_id=vec_id).data()
+                """
+        pre_result = neo4j_session.run(query2, node_id=vec_id).data()
+        pre_result = [item["node"] for item in pre_result]
+        query3 = f"""  
+                MATCH (v:data)-[:CONNECTED_TO*1..{strength}]->(m:data)
+                WHERE v.node_id = $node_id
+                RETURN m AS node
+                ORDER BY m.timestamp ASC
+                LIMIT {strength};
+             """
+        next_result = neo4j_session.run(query3, node_id=vec_id).data()
+        next_result = [item["node"] for item in next_result]
+        result = {"self": self_result[0]["node"], "previous": pre_result, "next": next_result,"namespace":match["namespace"] }
         results.append(result)
     return results
 
