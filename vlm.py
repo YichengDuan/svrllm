@@ -72,9 +72,8 @@ class VLM_EMB(object):
 
         with torch.no_grad():
             output = self.model.forward(**inputs,output_hidden_states=True)
-            language_hidden = output.hidden_states[-28:]
             
-            final_language_hidden = language_hidden[-1]
+            final_language_hidden = output.hidden_states[-1]
             # Calculate the average embedding 
             average_embeddings = final_language_hidden.mean(dim=1).cpu().detach().to(dtype=torch.float32).numpy().tolist() 
         
@@ -125,8 +124,10 @@ if __name__ == "__main__":
 
     my_vlm = VLM_EMB()
 
-    image_path_list = ["./frames/frame_8990.jpg", "./frames/frame_17980.jpg",]
-    text_prompt_list = ["what is this?","what is this?"]
+    # image_path_list = ["./frames/frame_8990.jpg", "./frames/frame_17980.jpg",]
+    # text_prompt_list = ["what is this?","what is this?"]
+    image_path_list = ["./frames/frame_600s.jpg",]
+    text_prompt_list = ["what is this?"]
 
     vec_res = my_vlm.generate_dense_vector(image_path_list, text_prompt_list)
     text_res = my_vlm.generate_text(image_path_list, text_prompt_list)
