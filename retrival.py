@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 VLM_BACKEND = VLM_EMB()
 
-def input_preprocess(img_path='./frames/frame_1200s.jpg', prompt="", strength = 1, top_k = 3):
+def input_preprocess(img_path, prompt="", strength = 1, top_k = 3):
     """
     :param img_path: path to the image
     :param prompt: user prompt for image description
@@ -21,6 +21,9 @@ def input_preprocess(img_path='./frames/frame_1200s.jpg', prompt="", strength = 
              the format: a list of k_top parts(dict) containing three dictionaries:
              self(the target result itself), previous(pre n_th node), and next(next n_th node) where n_th is defined by strength
     """
+    # no img_path provided, raise error
+    if img_path is None:
+        raise ValueError("No image path provided.")
     res_vec = VLM_BACKEND.generate_dense_vector([img_path],[prompt])[0]
     # get all the namespaces in pinecone index
     stats = pinecone_index.describe_index_stats()
@@ -112,11 +115,8 @@ def extract_frame(video_path, time_sec, output_image_path):
     vidcap.release()
     return True
 
-def retrieve_method(video_path,strength=1,target_sec=1250.0,total_time=3600.0):
-    output_image_path = "./frames/target_img.jpg"
-
-    extract_frame(video_path=video_path,time_sec=target_sec,output_image_path=output_image_path)
-    result = input_preprocess(img_path=output_image_path,strength=strength)
+def retrieve_method(image_path,strength=1,total_time=3600.0):
+    result = input_preprocess(img_path=image_path,strength=strength)
     # print(result)
     total_results = []
     for _hit in result:
@@ -129,11 +129,27 @@ def retrieve_method(video_path,strength=1,target_sec=1250.0,total_time=3600.0):
         else:
             tmp_start = _hit['previous'][-1]['timestamp']
         video_name = _hit['namespace']
-        total_results.append({'start':tmp_start, 'end':tmp_end, 'name':video_name})
+        # summary
+        image_path_list = []
+        text_list = []
+        for item in _hit['previous'] + [_hit['self']] + _hit['next']:
+            frame_path = item.get("frame_path", None)
+            cc_text = item.get("cc_text", None)
+            if frame_path is not None:
+                image_path_list.append(frame_path)
+            if cc_text is not None:
+                text_list.append(cc_text)
+        summary = summary_send_vlm(text_list=text_list, img_path_list=image_path_list)
+        total_results.append({'start':tmp_start, 'end':tmp_end, 'name':video_name,'summary': summary })
     return total_results
 
+def summary_send_vlm(text_list,img_path_list):
+    # combine the text into one large text
+    final_text = " ".join(text_list)
+    # send the text and image list to vlm and get the summary
+    summary = VLM_BACKEND.muti_image_text(img_path_list, final_text)
+    return summary
 
-   
 
-
-    
+result = retrieve_method(image_path="./frames/frame_900s.jpg", strength=1, total_time=3600.0)
+print(result)
