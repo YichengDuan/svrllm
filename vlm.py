@@ -41,7 +41,7 @@ class VLM_EMB(object):
         ]
         return messages
 
-    def generate_dense_vector(self, image_path_list:list, text_prompt_list:list)->list[list]:
+    def generate_dense_vector(self, image_path_list:list, text_prompt_list:list,method="mean")->list[list]:
         """
         Generate dense vectors for given image paths and text prompts.
 
@@ -72,10 +72,24 @@ class VLM_EMB(object):
 
         with torch.no_grad():
             output = self.model.forward(**inputs,output_hidden_states=True)
-            
+            for hs in output.hidden_states:
+                print(hs)
+
+            exit()
+            # Hidden-states of the model at the output of each layer plus the optional initial embedding outputs.
             final_language_hidden = output.hidden_states[-1]
-            # Calculate the average embedding 
-            average_embeddings = final_language_hidden.mean(dim=1).cpu().detach().to(dtype=torch.float32).numpy().tolist() 
+
+            if method == "mean":
+
+                # Calculate the average embedding 
+                average_embeddings = final_language_hidden.mean(dim=1).cpu().detach().to(dtype=torch.float32).numpy().tolist() 
+            
+            elif method == "last":
+                # Use the last embedding 
+                average_embeddings = final_language_hidden[-1].cpu().detach().to(dtype=torch.float32).numpy().tolist()
+
+            
+            
         
         return average_embeddings
     
