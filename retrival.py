@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 VLM_BACKEND = VLM_EMB()
 
-def input_preprocess(img_path='./frames/frame_1200s.jpg', prompt="what is this story about?", strength = 1, top_k = 3):
+def input_preprocess(img_path='./frames/frame_1200s.jpg', prompt="", strength = 1, top_k = 3):
     """
     :param img_path: path to the image
     :param prompt: user prompt for image description
@@ -21,7 +21,7 @@ def input_preprocess(img_path='./frames/frame_1200s.jpg', prompt="what is this s
              the format: a list of k_top parts(dict) containing three dictionaries:
              self(the target result itself), previous(pre n_th node), and next(next n_th node) where n_th is defined by strength
     """
-    res_vec = VLM_BACKEND.generate_dense_vector([img_path],[""])[0]
+    res_vec = VLM_BACKEND.generate_dense_vector([img_path],[prompt])[0]
     # get all the namespaces in pinecone index
     stats = pinecone_index.describe_index_stats()
     namespaces = list(stats["namespaces"].keys())
