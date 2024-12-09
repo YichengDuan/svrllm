@@ -157,5 +157,5 @@ def retrieve_method(image_path,strength=1,total_time=3600.0, summary_output=Fals
 
 
 
-result = retrieve_method(image_path="./frames/frame_900s.jpg", strength=1, total_time=3600.0)
+result = retrieve_method(image_path="./frames/frame_900s.jpg", strength=1, total_time=3600.0,summary_output=True)
 print(result)
