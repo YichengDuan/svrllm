@@ -115,7 +115,14 @@ def extract_frame(video_path, time_sec, output_image_path):
     vidcap.release()
     return True
 
-def retrieve_method(image_path,strength=1,total_time=3600.0):
+def summary_send_vlm(text_list,img_path_list):
+    # combine the text into one large text
+    final_text = " ".join(text_list)
+    # send the text and image list to vlm and get the summary
+    summary = VLM_BACKEND.muti_image_text(img_path_list, final_text)
+    return summary
+
+def retrieve_method(image_path,strength=1,total_time=3600.0, summary_output=False):
     result = input_preprocess(img_path=image_path,strength=strength)
     # print(result)
     total_results = []
@@ -139,16 +146,15 @@ def retrieve_method(image_path,strength=1,total_time=3600.0):
                 image_path_list.append(frame_path)
             if cc_text is not None:
                 text_list.append(cc_text)
-        summary = summary_send_vlm(text_list=text_list, img_path_list=image_path_list)
+
+        if summary :
+            summary = summary_send_vlm(text_list=text_list, img_path_list=image_path_list)
+        else:
+            summary = None
+        
         total_results.append({'start':tmp_start, 'end':tmp_end, 'name':video_name,'summary': summary })
     return total_results
 
-def summary_send_vlm(text_list,img_path_list):
-    # combine the text into one large text
-    final_text = " ".join(text_list)
-    # send the text and image list to vlm and get the summary
-    summary = VLM_BACKEND.muti_image_text(img_path_list, final_text)
-    return summary
 
 
 result = retrieve_method(image_path="./frames/frame_900s.jpg", strength=1, total_time=3600.0)
