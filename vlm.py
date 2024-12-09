@@ -40,19 +40,22 @@ class VLM_EMB(object):
             }
         ]
         return messages
-
-    def generate_dense_vector(self, image_path_list:list, text_prompt_list:list,method="mean")->list[list]:
+    
+    def generate_dense_vector(self, image_path_list: list, text_prompt_list: list, method="simple_mean",n_layer=4) -> list[list]:
         """
         Generate dense vectors for given image paths and text prompts.
 
         :param image_path_list: A list of paths to images for which the text prompts are provided.
         :param text_prompt_list: A list of text prompts describing the context for processing.
-        
+        :param method: Aggregation method - "simple_mean", "max_pool", "mean_pool", "concat_layers"
+        :param n_layer: Number of layers to use for pooling.
+
         :return: A list of dense vectors for the given images and text prompts.
         """
+        
         messages = []
-        for img_p, txt in zip(image_path_list,text_prompt_list):
-            messages.append(self.build_message(img_p,txt))
+        for img_p, txt in zip(image_path_list, text_prompt_list):
+            messages.append(self.build_message(img_p, txt))
 
         # Preparation for batch inference
         texts = [
@@ -71,27 +74,67 @@ class VLM_EMB(object):
         inputs = inputs.to(self.device_map)
 
         with torch.no_grad():
-            output = self.model.forward(**inputs,output_hidden_states=True)
-            for hs in output.hidden_states:
-                print(hs)
+            output = self.model.forward(**inputs, output_hidden_states=True)
 
-            exit()
-            # Hidden-states of the model at the output of each layer plus the optional initial embedding outputs.
-            final_language_hidden = output.hidden_states[-1]
+            # Hidden states of the model at the output of each layer plus the optional initial embedding outputs.
+            hidden_states = output.hidden_states  # Tuple: (num_layers, batch_size, seq_length, hidden_size)
 
-            if method == "mean":
+            # Extract the last hidden layer's hidden states for language
+            final_language_hidden = hidden_states[-1]  # Shape: (batch_size, seq_length, hidden_size)
 
-                # Calculate the average embedding 
-                average_embeddings = final_language_hidden.mean(dim=1).cpu().detach().to(dtype=torch.float32).numpy().tolist() 
-            
-            elif method == "last":
-                # Use the last embedding 
-                average_embeddings = final_language_hidden[-1].cpu().detach().to(dtype=torch.float32).numpy().tolist()
+            if method == "simple_mean":
+                # Simple mean pooling across all tokens
+                average_embeddings = final_language_hidden.mean(dim=1).cpu().detach().to(dtype=torch.float32).numpy().tolist()
+                embeddings = average_embeddings
 
-            
-            
-        
-        return average_embeddings
+            elif method == "max_pool":
+                # Max pooling across all tokens
+                max_embeddings = final_language_hidden.max(dim=1)[0].cpu().detach().to(dtype=torch.float32).numpy().tolist()
+                embeddings = max_embeddings
+
+            elif method == "mean_pool":
+                # Mean pooling with attention mask to exclude padding tokens
+                attention_mask = inputs['attention_mask']  # Shape: (batch_size, seq_length)
+                mask = attention_mask.unsqueeze(-1).expand(final_language_hidden.size()).float()  # Shape: (batch_size, seq_length, hidden_size)
+                sum_hidden = final_language_hidden * mask  # Apply mask
+                sum_hidden = torch.sum(sum_hidden, dim=1)  # Sum over tokens
+                sum_mask = torch.clamp(mask.sum(dim=1), min=1e-9)  # Avoid division by zero
+                mean_pooled = sum_hidden / sum_mask  # Mean pooling
+                mean_embeddings = mean_pooled.cpu().detach().to(dtype=torch.float32).numpy().tolist()
+                embeddings = mean_embeddings
+
+            elif method == "concat_layers":
+                # Combine multiple hidden layers for richer embeddings
+                selected_hidden_states = hidden_states[-n_layer:]  # Select last 'num_layers_to_use' layers
+
+                # Stack selected layers: shape (num_layers, batch_size, seq_length, hidden_size)
+                stacked_hidden = torch.stack(selected_hidden_states, dim=0)  # Shape: (num_layers, batch_size, seq_length, hidden_size)
+
+                # Apply attention mask to each layer
+                attention_mask = inputs['attention_mask']  # Shape: (batch_size, seq_length)
+                mask = attention_mask.unsqueeze(0).unsqueeze(-1).expand(stacked_hidden.size()).float()  # Shape: (num_layers, batch_size, seq_length, hidden_size)
+
+                # Apply mask and compute mean pooling for each layer
+                masked_hidden = stacked_hidden * mask  # Shape: (num_layers, batch_size, seq_length, hidden_size)
+                sum_hidden = torch.sum(masked_hidden, dim=2)  # Sum over tokens: (num_layers, batch_size, hidden_size)
+                sum_mask = torch.clamp(mask.sum(dim=2), min=1e-9)  # Sum of masks: (num_layers, batch_size, hidden_size)
+                mean_pooled_layers = sum_hidden / sum_mask  # Mean pooling: (num_layers, batch_size, hidden_size)
+
+                # Average the selected layers
+                averaged_layers = torch.mean(mean_pooled_layers, dim=0)  # Shape: (batch_size, hidden_size)
+
+                # Normalize the averaged embedding
+                normalized_averaged = torch.nn.functional.normalize(averaged_layers, p=2, dim=1)  # Shape: (batch_size, hidden_size)
+
+                # Convert to list
+                averaged_embeddings = normalized_averaged.cpu().detach().to(dtype=torch.float32).numpy().tolist()
+                embeddings = averaged_embeddings
+
+
+            else:
+                raise ValueError(f"Unknown aggregation method: {method}")
+
+        return embeddings
     
     def generate_text(self, image_path_list:list, text_prompt_list:list)->list[str]:
         """
@@ -133,19 +176,61 @@ class VLM_EMB(object):
             generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
         )
         return output_texts
-    
+    def muti_image_message_builder(self,image_inputs:list,text:str):
+        # Messages containing multiple images and a text query
+        messages = [
+            {"role": "system", "content": "You are a summary helper for describe a story using given images and text transcribe"},
+            {"role": "user",
+                "content": [],
+            }
+        ]
+        for img_path in image_inputs:
+            messages[1]["content"].append({"type": "image", "image": f"{img_path}"})
+
+        # Add the text query to the messages
+        messages[1]["content"].append({"type": "text", "text": f"The transcribe for the images proived is: {text}"})
+
+        return messages
+    def muti_image_text(self,image_inputs:list,text:str):
+        
+        messages = self.muti_image_message_builder(image_inputs,text)
+
+        # Preparation for inference
+        text = self.processor.apply_chat_template(
+            messages, tokenize=False, add_generation_prompt=True
+        )
+        image_inputs, video_inputs = process_vision_info(messages)
+        inputs = self.processor(
+            text=[text],
+            images=image_inputs,
+            videos=video_inputs,
+            padding=True,
+            return_tensors="pt",
+        )
+        inputs = inputs.to(self.device_map)
+
+        # Inference
+        generated_ids = self.model.generate(**inputs, max_new_tokens=128)
+        generated_ids_trimmed = [
+            out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
+        ]
+        output_text = self.processor.batch_decode(
+            generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
+        )
+
+        return output_text
+
 if __name__ == "__main__":
 
     my_vlm = VLM_EMB()
-
+    
     # image_path_list = ["./frames/frame_8990.jpg", "./frames/frame_17980.jpg",]
     # text_prompt_list = ["what is this?","what is this?"]
     image_path_list = ["./frames/frame_600s.jpg",]
-    text_prompt_list = ["what is this?"]
-
+    text_prompt_list = ["what is this?fjdskla;fdjl;sjakl"]
+    # ["simple_mean", "max_pool", "mean_pool", "concat_layers"]
     vec_res = my_vlm.generate_dense_vector(image_path_list, text_prompt_list)
-    text_res = my_vlm.generate_text(image_path_list, text_prompt_list)
-    print(text_res)
+    
 
     
 
