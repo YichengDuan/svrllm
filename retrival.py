@@ -147,7 +147,7 @@ def retrieve_method(image_path,strength=1,total_time=3600.0, summary_output=Fals
             if cc_text is not None:
                 text_list.append(cc_text)
 
-        if summary :
+        if summary_output :
             summary = summary_send_vlm(text_list=text_list, img_path_list=image_path_list)
         else:
             summary = None
