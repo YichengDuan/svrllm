@@ -79,8 +79,7 @@ def sv_test(
         test_frames = extract_frames_opencv(
             video_path=video_path,
             output_dir=tmp_frame_path,
-            interval=extract_interval,
-            cv2backend=select_video_backend()
+            interval=extract_interval
         )
         correct = 0
         total = len(test_frames)

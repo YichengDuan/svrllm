@@ -1,7 +1,7 @@
 import yaml
 from neo4j import GraphDatabase
 from pinecone import Pinecone, ServerlessSpec
-import platform
+import platform,cv2
 # Load configuration from config.yaml
 config = {}
 try:
