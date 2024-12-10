@@ -6,7 +6,7 @@ video_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),"data/2023-
 CC_json_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),"data/2023-01-01_1800_US_CNN_CNN_Newsroom_With_Fredricka_Whitfield.json")
 
 
-from mian_pp import process_video
+from main_pp import process_video
 
 
 vlm = VLM_EMB()

@@ -195,15 +195,18 @@ def cleanup_db() -> bool:
 
 def perdict_result(total_results:dict,k:int,true_time:float)-> bool:
     """
-    Prediction: Check if the predicted range includes the true second
-    :param total_results: dict
-    :param k: int
-    :param true_time: float
+    Determines if the true frame time is within the top-k retrieved results.
 
-    :return: bool
+    :param total_results: List of retrieved results, each containing a timestamp.
+    :param k: Number of top results to consider.
+    :param true_time: The correct timestamp for the frame.
+    
+    :return: True if true_time is within the top-k results, else False.
     """
-    predicted_start = total_results[k]['start']
-    predicted_end = total_results[k]['end']
-    prediction = predicted_start <= true_time <= predicted_end
-
-    return prediction
+    top_k_results = total_results[:k]
+    for result in top_k_results:
+        predicted_start = result['start']
+        predicted_end = result['end']
+        if predicted_start <= true_time <= predicted_end:
+            return True
+    return False

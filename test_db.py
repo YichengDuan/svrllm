@@ -1,4 +1,4 @@
-from mian_pp import store_data
+from main_pp import store_data
 from util import create_neo4j_node, disconnect_neo4j
 
 

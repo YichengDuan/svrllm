@@ -1,5 +1,5 @@
-from mian_pp import process_video
-from retrival import retrieve_method
+from main_pp import process_video
+from retrieval import retrieve_method
 from vlm import VLM_EMB
 
 # rewrite

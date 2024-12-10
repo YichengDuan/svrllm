@@ -208,6 +208,7 @@ def store_data(frame_list,pinecone_index:pinecone,neo4j_driver:Driver,cc_list,ve
 def process_video(video_path,
                   CC_json_path, 
                   vlm_endpoint:VLM_EMB,
+                  video_extract_interval=100,
                   pinecone_index:pinecone.Index=pinecone_index, 
                   neo4j_driver:Driver=neo4j_driver):
     """
@@ -218,7 +219,7 @@ def process_video(video_path,
     print(f"[Finished]: extract_cc. Length of CC in CC_sequent_raw = {len(CC_sequent_raw['CC'])}")
 
 
-    extracted_frames, CC_sequent = video_pair_generation(video_path= video_path, CC_sequence= CC_sequent_raw, interval=100)
+    extracted_frames, CC_sequent = video_pair_generation(video_path= video_path, CC_sequence= CC_sequent_raw, interval=video_extract_interval)
     print(f"[Finished]: video_pair_generation. Length of extracted_frames = {len(extracted_frames)}")
 
 
