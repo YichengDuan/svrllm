@@ -3,9 +3,13 @@ from config import pinecone_client, neo4j_driver, pinecone_index
 from vlm import VLM_EMB
 import os
 from tqdm import tqdm
-
+from mian_pp import process_video
 from retrival import extract_frame,input_preprocess
 
+
+import os
+from vlm import VLM_EMB
+# from config import neo4j_driver,pinecone_index
 
 
 
@@ -35,7 +39,15 @@ def retrieve_method(video_path,strength=1,target_sec=1250.0,total_time=3600.0):
 
 
 if __name__ == "__main__":
-    
+
+    video_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),"data/2023-01-01_1800_US_CNN_CNN_Newsroom_With_Fredricka_Whitfield.mp4")
+    CC_json_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),"data/2023-01-01_1800_US_CNN_CNN_Newsroom_With_Fredricka_Whitfield.json")
+
+
+    vlm = VLM_EMB()
+    process_video(video_path=video_path, CC_json_path=CC_json_path,vlm_endpoint=vlm)
+
+
     video_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),"data/2023-01-01_1800_US_CNN_CNN_Newsroom_With_Fredricka_Whitfield.mp4")
     print("test on 1250s")
     
