@@ -66,7 +66,7 @@ def sv_test(
     
     # Cleanup databases
     cleanup_db()
-
+    print(extract_interval)
     # Process the video to extract frames
     process_video(
         video_path=video_path,
@@ -79,7 +79,7 @@ def sv_test(
     test_frames = extract_frames_opencv(
         video_path=video_path,
         output_dir=tmp_frame_path,
-        interval=extract_interval
+        interval=50
     )
     correct = 0
     total = len(test_frames)
