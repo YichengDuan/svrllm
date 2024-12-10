@@ -123,13 +123,14 @@ def video_pair_generation(video_path, CC_sequence, interval:int = 300, tag:bool 
 
     # index alignment need !!!!!!!
     
-    output_dir = "./frames"
-    # vid_frames = extract_frames(video_path, output_dir, interval=interval)
+    
+    # get video name from video_path
+    video_name = video_path.split("/")[-1].split(".")[0]
+    output_dir = f"./frames/{video_name}"
     vid_frames = extract_frames_opencv(video_path, output_dir, interval=interval)
-
     
     print(f"[Finished]: extract_frames. Length of vid_frames = {len(vid_frames)}")
-
+    
     cc_seq_data = []
     raw_cc_data = CC_sequence["CC"]
     video_start_time = parse_time(raw_cc_data[0]["StartTime"])
@@ -270,7 +271,7 @@ def process_video(video_path,CC_json_path, vlm_endpoint:VLM_EMB,pinecone_index:p
     print(f"[Finished]: extract_cc. Length of CC in CC_sequent_raw = {len(CC_sequent_raw['CC'])}")
 
 
-    extracted_frames, CC_sequent = video_pair_generation(video_path, CC_sequent_raw,interval=100)
+    extracted_frames, CC_sequent = video_pair_generation(video_path, CC_sequent_raw, interval=100)
     print(f"[Finished]: video_pair_generation. Length of extracted_frames = {len(extracted_frames)}")
 
     # write an loop that batch of zip  extracted_frames,CC_sequent

@@ -188,7 +188,8 @@ class VLM_EMB(object):
             messages[1]["content"].append({"type": "image", "image": f"{img_path}"})
 
         # Add the text query to the messages
-        messages[1]["content"].append({"type": "text", "text": f"The transcribe for the images proived is: {text}"})
+        messages[1]["content"].append({"type": "text", 
+                                       "text": f"Do start you answer with 'this image shows'. Discribe the story behend this. The transcribe for the images proived is: {text}"})
 
         return messages
     def muti_image_text(self,image_inputs:list,text:str):

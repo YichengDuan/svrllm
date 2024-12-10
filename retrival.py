@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 VLM_BACKEND = VLM_EMB()
 
-def input_preprocess(img_path, prompt="", strength = 1, top_k = 3):
+def input_preprocess(img_path, prompt="", strength = 1, top_k = 3, vectorize_method = 'simple_mean', n_layer = 4):
     """
     :param img_path: path to the image
     :param prompt: user prompt for image description
@@ -24,7 +24,7 @@ def input_preprocess(img_path, prompt="", strength = 1, top_k = 3):
     # no img_path provided, raise error
     if img_path is None:
         raise ValueError("No image path provided.")
-    res_vec = VLM_BACKEND.generate_dense_vector([img_path],[prompt])[0]
+    res_vec = VLM_BACKEND.generate_dense_vector([img_path],[prompt],method=vectorize_method,n_layer = n_layer)[0]
     # get all the namespaces in pinecone index
     stats = pinecone_index.describe_index_stats()
     namespaces = list(stats["namespaces"].keys())
@@ -156,6 +156,6 @@ def retrieve_method(image_path,strength=1,total_time=3600.0, summary_output=Fals
     return total_results
 
 
-
-result = retrieve_method(image_path="./frames/frame_900s.jpg", strength=1, total_time=3600.0,summary_output=True)
-print(result)
+if __name__ == '__main__':
+    result = retrieve_method(image_path="./frames/frame_900s.jpg", strength=1, total_time=3600.0,summary_output=True)
+    print(result)
