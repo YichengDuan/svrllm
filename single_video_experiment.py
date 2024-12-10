@@ -4,8 +4,8 @@ from vlm import VLM_EMB
 import os
 from tqdm import tqdm
 from mian_pp import process_video
-from retrival import input_preprocess,retrieve_method
-from util import extract_frame,calculate_video_duration
+from retrival import retrieve_method
+from util import extract_frame,calculate_video_duration,extract_frames_opencv
 
 import os
 from vlm import VLM_EMB
@@ -17,26 +17,31 @@ if __name__ == "__main__":
     video_path = os.path.join(local_path,"data/2023-01-01_1800_US_CNN_CNN_Newsroom_With_Fredricka_Whitfield.mp4")
     CC_json_path = os.path.join(local_path,"data/2023-01-01_1800_US_CNN_CNN_Newsroom_With_Fredricka_Whitfield.json")
 
+    extract_interval = [2,5,10,20,50,100]
+    method_list = ["simple_mean", "max_pool", "mean_pool", "concat_layers"]
+    strength_list = [1,2,3]
+
 
     vlm = VLM_EMB()
     
 
+    
+    duration = calculate_video_duration(video_path)
+
+
     tmp_frame_path = os.path.join(local_path,"frames/tmp/")
 
-    
-    duration =  calculate_video_duration(video_path)
-
-
-    total_results = retrieve_method(video_path = video_path,total_time=duration)
 
 
     process_video(video_path=video_path, CC_json_path=CC_json_path,vlm_endpoint=vlm)
 
-    print(total_results)
-    print("="*100)
-    print(f"Best range is at start: {total_results[0]['start']}s, end {total_results[0]['end']}s, in video name: {total_results[0]['name']}")
-
     test_range = range(0,duration,50)
+
+    test_frames = extract_frames_opencv(video_path=video_path,output_dir=tmp_frame_path,interval=300)
+
+    total_results = retrieve_method(image_path = video_path,strength=1,total_time=duration,summary_output=False)
+
+
 
     for _S in range(1,4):
          # Initialize counters

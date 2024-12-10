@@ -5,56 +5,13 @@ import cv2
 import os
 import pinecone  # Import the Pinecone client
 import json
-from neo4j import GraphDatabase
+from neo4j import GraphDatabase,Driver
+
 from datetime import datetime
-from util import create_neo4j_node, store_vector_in_pinecone
+from util import create_neo4j_node, store_vector_in_pinecone, extract_frames_opencv
 from vlm import VLM_EMB
 from tqdm import tqdm
 from config import pinecone_index,neo4j_driver
-
-def extract_frames_opencv(video_path, output_dir, interval=300):
-    """
-    Extract frames from a video every 'interval' seconds using OpenCV with frame seeking.
-    
-    :param video_path: Path to the input video file.
-    :param output_dir: Directory to save extracted frames.
-    :param interval: Time interval in seconds to extract frames (default is 300 seconds).
-    :return: List of dictionaries containing frame paths and their corresponding timestamps.
-    """
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    cap = cv2.VideoCapture(video_path,cv2.CAP_ANY)
-    if not cap.isOpened():
-        raise FileNotFoundError(f"Cannot open video file: {video_path}")
-
-    fps = cap.get(cv2.CAP_PROP_FPS)
-    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    duration = total_frames / fps
-
-    extracted_frames = []
-    current_time = 0.0
-
-    while current_time < duration:
-        # Set the position in milliseconds
-        cap.set(cv2.CAP_PROP_POS_MSEC, current_time * 1000)
-        ret, frame = cap.read()
-        if not ret:
-            print(f"Frame at {current_time} seconds not found.")
-            current_time += interval
-            continue
-
-        frame_filename = os.path.join(output_dir, f'frame_{int(current_time)}s.jpg')
-        cv2.imwrite(frame_filename, frame)
-        extracted_frames.append({
-            "frame_path": frame_filename,
-            "timestamp": current_time
-        })
-        current_time += interval
-
-    cap.release()
-    return extracted_frames
-
 
 def send_to_vlm(frames: list[dict], ccs: list[dict],vlm:VLM_EMB, background: dict, retrun_vec: bool,batch_size=2):
     ## take the frame, take the background, take the CC 
@@ -106,8 +63,6 @@ def send_to_vlm(frames: list[dict], ccs: list[dict],vlm:VLM_EMB, background: dic
             result.extend(vlm.generate_text(batch_image_path_list, batch_text_prompt_list))
     return result
         
-
-    
 
 def parse_time(time_str) -> datetime:
     time_format = "%Y%m%d%H%M%S.%f"
@@ -229,7 +184,7 @@ def extract_cc(CC_json_path:str)-> dict:
                 print(f"Error decoding JSON line: {line}, error: {e}")
     return cc_data
     
-def store_data(frame_list,pinecone_index:pinecone,neo4j_driver:GraphDatabase.driver,cc_list,vector_list,name_spaces=None):
+def store_data(frame_list,pinecone_index:pinecone,neo4j_driver:Driver,cc_list,vector_list,name_spaces=None):
     """
     Store data in Pinecone and Neo4j.
     each element in vector_list is a dictionary including data and vectors.
@@ -254,7 +209,7 @@ def process_video(video_path,
                   CC_json_path, 
                   vlm_endpoint:VLM_EMB,
                   pinecone_index:pinecone.Index=pinecone_index, 
-                  neo4j_driver:GraphDatabase.driver=neo4j_driver):
+                  neo4j_driver:Driver=neo4j_driver):
     """
     Process the video to extract frames, send them to VLM, 
     and store vectors in Pinecone, neo4j for graph construction

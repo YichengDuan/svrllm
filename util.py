@@ -1,4 +1,5 @@
 import cv2
+import os
 def create_neo4j_node(session, data:dict , last_node_id=None):
     """
     :param session: Neo4j session
@@ -44,7 +45,7 @@ def store_vector_in_pinecone(pinecone_index,vector, vector_id,name_space):
         print(f"Error storing vector in Pinecone: {e}")
 
 
-def extract_frame(video_path, time_sec, output_image_path):
+def extract_frame(video_path:str, time_sec:float, output_image_path:str):
     """
     Extracts a frame from the video at the specified time and saves it as an image.
 
@@ -94,6 +95,49 @@ def extract_frame(video_path, time_sec, output_image_path):
     vidcap.release()
     return True
 
+def extract_frames_opencv(video_path:str, output_dir:str, interval=300):
+    """
+    Extract frames from a video every 'interval' seconds using OpenCV with frame seeking.
+    
+    :param video_path: Path to the input video file.
+    :param output_dir: Directory to save extracted frames.
+    :param interval: Time interval in seconds to extract frames (default is 300 seconds).
+    :return: List of dictionaries containing frame paths and their corresponding timestamps.
+    """
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    cap = cv2.VideoCapture(video_path,cv2.CAP_ANY)
+    if not cap.isOpened():
+        raise FileNotFoundError(f"Cannot open video file: {video_path}")
+
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    duration = total_frames / fps
+
+    extracted_frames = []
+    current_time = 0.0
+
+    while current_time < duration:
+        # Set the position in milliseconds
+        cap.set(cv2.CAP_PROP_POS_MSEC, current_time * 1000)
+        ret, frame = cap.read()
+        if not ret:
+            print(f"Frame at {current_time} seconds not found.")
+            current_time += interval
+            continue
+
+        frame_filename = os.path.join(output_dir, f'frame_{int(current_time)}s.jpg')
+        cv2.imwrite(frame_filename, frame)
+        extracted_frames.append({
+            "frame_path": frame_filename,
+            "timestamp": current_time
+        })
+        current_time += interval
+
+    cap.release()
+    return extracted_frames
+
 def calculate_video_duration(video_path) -> float:
     """
     Calculate the duration of a video in seconds.
@@ -114,3 +158,9 @@ def calculate_video_duration(video_path) -> float:
     cap.release()
 
     return duration
+
+
+def cleanup_db()->bool:
+
+
+    return

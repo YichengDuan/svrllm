@@ -4,7 +4,7 @@
 
 # top k 
 import cv2
-from config import pinecone_client, neo4j_driver, pinecone_index
+from config import neo4j_driver, pinecone_index
 from vlm import VLM_EMB
 import os
 from tqdm import tqdm
@@ -73,8 +73,8 @@ def summary_send_vlm(text_list,img_path_list):
     summary = VLM_BACKEND.muti_image_text(img_path_list, final_text)
     return summary
 
-def retrieve_method(image_path,strength=1,total_time=3600.0, summary_output=False):
-    result = input_preprocess(img_path=image_path,strength=strength)
+def retrieve_method(image_path,strength=1,top_k=3,total_time=3600.0, summary_output=False):
+    result = input_preprocess(img_path=image_path,top_k=top_k,strength=strength)
     # print(result)
     total_results = []
     for _hit in result:

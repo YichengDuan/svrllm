@@ -3,10 +3,14 @@ from neo4j import GraphDatabase
 from pinecone import Pinecone, ServerlessSpec
 # Load configuration from config.yaml
 config = {}
-with open('config.yaml', 'r') as file:
-    config = yaml.safe_load(file)
+try:
+    with open('./config.yaml', 'r') as file:
+        config = yaml.safe_load(file)
+except FileNotFoundError as e:
+    print(f"Error, No config file: {e}")
+    exit(1)
 
-print(config)
+print(f"loaded config: {str(config)}")
 
 
 # Neo4j Aura connection details (ensure these values are set in config.yaml)
