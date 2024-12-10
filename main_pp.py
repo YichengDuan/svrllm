@@ -102,7 +102,6 @@ def video_pair_generation(video_path, CC_sequence, interval:int = 300, tag:bool 
                 cc_index += 1
             else:
                 break
-        print(frame,cc_index)
         # Check if the frame falls into the current CC range
         cc_start_time = parse_time(raw_cc_data[cc_index]["StartTime"])
         cc_end_time = parse_time(raw_cc_data[cc_index]["EndTime"])
