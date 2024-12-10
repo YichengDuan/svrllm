@@ -1,5 +1,6 @@
 import cv2
 import os
+
 def create_neo4j_node(session, data:dict , last_node_id=None):
     """
     :param session: Neo4j session
@@ -160,7 +161,49 @@ def calculate_video_duration(video_path) -> float:
     return duration
 
 
-def cleanup_db()->bool:
+def cleanup_db() -> bool:
+    """
+    Cleans up all data from Neo4j and Pinecone databases.
+
+    :return: True if cleanup is successful, False otherwise.
+    """
+    try:
+        from config import neo4j_driver, pinecone_index
+
+        # ----- Clean Pinecone Index -----
+        # Deletes all vectors from the Pinecone index.
+        print("Initiating Pinecone index cleanup...")
+        pinecone_index.delete(delete_all=True)
+        print("Pinecone index successfully cleaned.")
+
+        # ----- Clean Neo4j Database -----
+        # Deletes all nodes and relationships in the Neo4j graph database.
+        print("Initiating Neo4j database cleanup...")
+        with neo4j_driver.session() as session:
+            # Cypher query to match and delete all nodes and relationships.
+            cypher_query = "MATCH (n) DETACH DELETE n"
+            session.run(cypher_query)
+        print("Neo4j database successfully cleaned.")
+
+        return True
+
+    except Exception as e:
+        # Logs the exception message for debugging purposes.
+        print(f"Error during database cleanup: {e}")
+        return False
 
 
-    return
+def perdict_result(total_results:dict,k:int,true_time:float)-> bool:
+    """
+    Prediction: Check if the predicted range includes the true second
+    :param total_results: dict
+    :param k: int
+    :param true_time: float
+
+    :return: bool
+    """
+    predicted_start = total_results[k]['start']
+    predicted_end = total_results[k]['end']
+    prediction = predicted_start <= true_time <= predicted_end
+
+    return prediction

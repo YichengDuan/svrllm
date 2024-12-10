@@ -11,7 +11,13 @@ from tqdm import tqdm
 
 VLM_BACKEND = VLM_EMB()
 
-def input_preprocess(img_path, prompt="", strength = 1, top_k = 3, vectorize_method = 'simple_mean', n_layer = 4):
+def input_preprocess(img_path, prompt="", 
+                     strength = 1, 
+                     top_k = 3, 
+                     vectorize_method = 'simple_mean', 
+                     n_layer = 4,
+                     neo4j_driver=neo4j_driver,
+                     pinecone_index = pinecone_index):
     """
     :param img_path: path to the image
     :param prompt: user prompt for image description
