@@ -229,7 +229,7 @@ def extract_cc(CC_json_path:str)-> dict:
                 print(f"Error decoding JSON line: {line}, error: {e}")
     return cc_data
     
-def store_data(frame_list,pinecone_index,neo4j_driver,cc_list,vector_list,name_spaces=None):
+def store_data(frame_list,pinecone_index:pinecone,neo4j_driver:GraphDatabase.driver,cc_list,vector_list,name_spaces=None):
     """
     Store data in Pinecone and Neo4j.
     each element in vector_list is a dictionary including data and vectors.
@@ -250,7 +250,11 @@ def store_data(frame_list,pinecone_index,neo4j_driver,cc_list,vector_list,name_s
     return result
 
 
-def process_video(video_path,CC_json_path, vlm_endpoint:VLM_EMB,pinecone_index:pinecone.Index=pinecone_index, neo4j_driver:GraphDatabase.driver=neo4j_driver):
+def process_video(video_path,
+                  CC_json_path, 
+                  vlm_endpoint:VLM_EMB,
+                  pinecone_index:pinecone.Index=pinecone_index, 
+                  neo4j_driver:GraphDatabase.driver=neo4j_driver):
     """
     Process the video to extract frames, send them to VLM, 
     and store vectors in Pinecone, neo4j for graph construction

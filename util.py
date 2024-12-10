@@ -1,5 +1,5 @@
-
-def create_neo4j_node(session, data , last_node_id=None):
+import cv2
+def create_neo4j_node(session, data:dict , last_node_id=None):
     """
     :param session: Neo4j session
     :param data: the data dictionary
@@ -42,3 +42,75 @@ def store_vector_in_pinecone(pinecone_index,vector, vector_id,name_space):
         pinecone_index.upsert([(vector_id_str, vector)],namespace=name_space)
     except Exception as e:
         print(f"Error storing vector in Pinecone: {e}")
+
+
+def extract_frame(video_path, time_sec, output_image_path):
+    """
+    Extracts a frame from the video at the specified time and saves it as an image.
+
+    Parameters:
+        video_path (str): Path to the input video file.
+        time_sec (float): Time in seconds at which to extract the frame.
+        output_image_path (str): Path to save the extracted image.
+
+    Returns:
+        bool: True if frame extraction was successful, False otherwise.
+    """
+    # Open the video file
+    vidcap = cv2.VideoCapture(video_path,cv2.CAP_AVFOUNDATION)
+    if not vidcap.isOpened():
+        print("Error: Cannot open video file.")
+        return False
+
+    # Get frames per second (fps) to calculate frame number
+    fps = vidcap.get(cv2.CAP_PROP_FPS)
+    if fps == 0:
+        print("Error: Cannot retrieve FPS from video.")
+        vidcap.release()
+        return False
+
+    # Calculate frame number corresponding to the given time
+    frame_number = int(fps * time_sec)
+    total_frames = int(vidcap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+    if frame_number >= total_frames:
+        print("Error: Time exceeds video duration.")
+        vidcap.release()
+        return False
+
+    # Set the video position to the desired frame
+    vidcap.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
+
+    # Read the frame
+    success, image = vidcap.read()
+    if not success:
+        print("Error: Cannot read frame.")
+        vidcap.release()
+        return False
+
+    # Save the frame as an image file
+    cv2.imwrite(output_image_path, image)
+    # Release the video capture object
+    vidcap.release()
+    return True
+
+def calculate_video_duration(video_path) -> float:
+    """
+    Calculate the duration of a video in seconds.
+
+    Parameters:
+        video_path (str): Path to the input video file.
+    Returns:
+        float: Duration of the video in seconds.
+    """
+
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        raise FileNotFoundError(f"Cannot open video file: {video_path}")
+
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    duration = float(total_frames / fps)
+    cap.release()
+
+    return duration

@@ -65,55 +65,6 @@ def input_preprocess(img_path, prompt="", strength = 1, top_k = 3, vectorize_met
         results.append(result)
     return results
 
-def extract_frame(video_path, time_sec, output_image_path):
-    """
-    Extracts a frame from the video at the specified time and saves it as an image.
-
-    Parameters:
-        video_path (str): Path to the input video file.
-        time_sec (float): Time in seconds at which to extract the frame.
-        output_image_path (str): Path to save the extracted image.
-
-    Returns:
-        bool: True if frame extraction was successful, False otherwise.
-    """
-    # Open the video file
-    vidcap = cv2.VideoCapture(video_path,cv2.CAP_AVFOUNDATION)
-    if not vidcap.isOpened():
-        print("Error: Cannot open video file.")
-        return False
-
-    # Get frames per second (fps) to calculate frame number
-    fps = vidcap.get(cv2.CAP_PROP_FPS)
-    if fps == 0:
-        print("Error: Cannot retrieve FPS from video.")
-        vidcap.release()
-        return False
-
-    # Calculate frame number corresponding to the given time
-    frame_number = int(fps * time_sec)
-    total_frames = int(vidcap.get(cv2.CAP_PROP_FRAME_COUNT))
-
-    if frame_number >= total_frames:
-        print("Error: Time exceeds video duration.")
-        vidcap.release()
-        return False
-
-    # Set the video position to the desired frame
-    vidcap.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
-
-    # Read the frame
-    success, image = vidcap.read()
-    if not success:
-        print("Error: Cannot read frame.")
-        vidcap.release()
-        return False
-
-    # Save the frame as an image file
-    cv2.imwrite(output_image_path, image)
-    # Release the video capture object
-    vidcap.release()
-    return True
 
 def summary_send_vlm(text_list,img_path_list):
     # combine the text into one large text
