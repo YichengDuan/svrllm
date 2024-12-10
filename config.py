@@ -1,6 +1,7 @@
 import yaml
 from neo4j import GraphDatabase
 from pinecone import Pinecone, ServerlessSpec
+import platform
 # Load configuration from config.yaml
 config = {}
 try:
@@ -37,3 +38,15 @@ if 'video' not in pinecone_client.list_indexes().names():
         )
     )
 pinecone_index = pinecone_client.Index("video")
+
+def select_video_backend():
+    os_type = platform.system()
+    if os_type == 'Darwin':
+        # macOS
+        backend = cv2.CAP_AVFOUNDATION
+    else:
+        backend = cv2.CAP_ANY  # Alternatively, CAP_FFMPEG
+
+    return backend
+
+CV2_BACKEND = select_video_backend()

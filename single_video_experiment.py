@@ -8,7 +8,35 @@ import logging
 from main_pp import process_video
 from retrieval import retrieve_method, VLM_BACKEND
 from util import calculate_video_duration, extract_frames_opencv, perdict_result, cleanup_db
+from vlm import VLM_EMB
+import shutil
+import cv2
 
+
+
+def cleanup_frames_directory(directory_path: str) -> bool:
+    """
+    Deletes the specified directory and recreates it.
+
+    :param directory_path: Path to the directory to be cleaned.
+    :return: True if cleanup is successful, False otherwise.
+    """
+    try:
+        if os.path.exists(directory_path):
+            shutil.rmtree(directory_path)
+            logging.info(f"Successfully removed directory: {directory_path}")
+        else:
+            logging.warning(f"Directory does not exist: {directory_path}")
+
+        # Recreate the directory
+        os.makedirs(directory_path, exist_ok=True)
+        logging.info(f"Recreated directory: {directory_path}")
+        return True
+
+    except Exception as e:
+        logging.error(f"Error cleaning up directory {directory_path}: {e}")
+        return False
+    
 def sv_test(
     extract_interval: float,
     method: str = 'simple_mean',
@@ -18,7 +46,7 @@ def sv_test(
     tmp_frame_path: str = "",
     duration: float = 0.0,
     CC_json_path: str = "",
-    VLM_BACKEND: str = ""
+    VLM_BACKEND:VLM_EMB = VLM_BACKEND
 ) -> dict:
     """
     Evaluate video retrieval performance by calculating recall.
@@ -51,7 +79,8 @@ def sv_test(
         test_frames = extract_frames_opencv(
             video_path=video_path,
             output_dir=tmp_frame_path,
-            interval=extract_interval
+            interval=extract_interval,
+            cv2backend=select_video_backend()
         )
         correct = 0
         total = len(test_frames)
@@ -105,7 +134,7 @@ if __name__ == "__main__":
     logging.basicConfig(
         filename=log_file_path,
         filemode='w',
-        level=logging.INFO,
+        level=logging.DEBUG,
         format='%(asctime)s - %(levelname)s - %(message)s'
     )
 
@@ -134,6 +163,7 @@ if __name__ == "__main__":
 
     # Iterate over each combination with a progress bar
     for extract_interval, method in tqdm(parameter_combinations, desc="Running Experiments"):
+        cleanup_frames_directory(tmp_frame_path)
         logging.info(f"Running experiment with extract_interval={extract_interval}, method={method}")
         recall_result = sv_test(
             extract_interval=extract_interval,

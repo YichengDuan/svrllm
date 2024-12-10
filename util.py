@@ -1,5 +1,6 @@
 import cv2
 import os
+from config import CV2_BACKEND
 
 def create_neo4j_node(session, data:dict , last_node_id=None):
     """
@@ -108,7 +109,7 @@ def extract_frames_opencv(video_path:str, output_dir:str, interval=300):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    cap = cv2.VideoCapture(video_path,cv2.CAP_ANY)
+    cap = cv2.VideoCapture(video_path,CV2_BACKEND)
     if not cap.isOpened():
         raise FileNotFoundError(f"Cannot open video file: {video_path}")
 
@@ -149,7 +150,7 @@ def calculate_video_duration(video_path) -> float:
         float: Duration of the video in seconds.
     """
 
-    cap = cv2.VideoCapture(video_path)
+    cap = cv2.VideoCapture(video_path,CV2_BACKEND)
     if not cap.isOpened():
         raise FileNotFoundError(f"Cannot open video file: {video_path}")
 
@@ -169,11 +170,15 @@ def cleanup_db() -> bool:
     """
     try:
         from config import neo4j_driver, pinecone_index
-
+        
         # ----- Clean Pinecone Index -----
         # Deletes all vectors from the Pinecone index.
         print("Initiating Pinecone index cleanup...")
-        pinecone_index.delete(delete_all=True)
+        # get all the namespaces in pinecone index
+        stats = pinecone_index.describe_index_stats()
+        namespaces = list(stats["namespaces"].keys())
+        for namespace in namespaces:
+            pinecone_index.delete(namespace=namespace, delete_all=True)
         print("Pinecone index successfully cleaned.")
 
         # ----- Clean Neo4j Database -----
