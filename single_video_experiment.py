@@ -63,67 +63,59 @@ def sv_test(
     
     :return: Dictionary containing recall, correct count, and total frames.
     """
-    try:
-        # Cleanup databases
-        cleanup_db()
+    
+    # Cleanup databases
+    cleanup_db()
 
-        # Process the video to extract frames
-        process_video(
-            video_path=video_path,
-            CC_json_path=CC_json_path,
-            vlm_endpoint=VLM_BACKEND,
-            video_extract_interval=extract_interval
+    # Process the video to extract frames
+    process_video(
+        video_path=video_path,
+        CC_json_path=CC_json_path,
+        vlm_endpoint=VLM_BACKEND,
+        video_extract_interval=extract_interval
+    )
+
+    # Extract frames from the video at specified intervals
+    test_frames = extract_frames_opencv(
+        video_path=video_path,
+        output_dir=tmp_frame_path,
+        interval=extract_interval
+    )
+    correct = 0
+    total = len(test_frames)
+
+    # Iterate through each frame to evaluate retrieval
+    for frame in test_frames:
+        image_path = frame["frame_path"]
+        correct_time = frame["timestamp"]
+        
+        # Retrieve results using the specified method
+        total_results = retrieve_method(
+            image_path=image_path,
+            strength=strength,
+            total_time=duration,
+            summary_output=False,
+            method=method
         )
-
-        # Extract frames from the video at specified intervals
-        test_frames = extract_frames_opencv(
-            video_path=video_path,
-            output_dir=tmp_frame_path,
-            interval=extract_interval
+        
+        # Determine if the retrieval result is correct
+        frame_test_result = perdict_result(
+            total_results=total_results,
+            k=result_top_k,
+            true_time=correct_time
         )
-        correct = 0
-        total = len(test_frames)
+        
+        if frame_test_result:
+            correct += 1
 
-        # Iterate through each frame to evaluate retrieval
-        for frame in test_frames:
-            image_path = frame["frame_path"]
-            correct_time = frame["timestamp"]
-            
-            # Retrieve results using the specified method
-            total_results = retrieve_method(
-                image_path=image_path,
-                strength=strength,
-                total_time=duration,
-                summary_output=False,
-                method=method
-            )
-            
-            # Determine if the retrieval result is correct
-            frame_test_result = perdict_result(
-                total_results=total_results,
-                k=result_top_k,
-                true_time=correct_time
-            )
-            
-            if frame_test_result:
-                correct += 1
+    # Calculate recall
+    recall = correct / total if total > 0 else 0.0
 
-        # Calculate recall
-        recall = correct / total if total > 0 else 0.0
-
-        return {
-            "recall": recall,
-            "correct": correct,
-            "total": total
-        }
-
-    except Exception as e:
-        logging.error(f"Error in sv_test with parameters extract_interval={extract_interval}, method={method}: {e}")
-        return {
-            "recall": None,
-            "correct": None,
-            "total": None
-        }
+    return {
+        "recall": recall,
+        "correct": correct,
+        "total": total
+    }
 
 if __name__ == "__main__":
     # Configure logging
