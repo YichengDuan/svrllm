@@ -69,6 +69,11 @@ def parse_time(time_str) -> datetime:
     return datetime.strptime(time_str, time_format)
 
 
+def parse_video_start_time(time_str) -> datetime:
+    time_format = "%Y%m%d%H%M%S"
+    return datetime.strptime(time_str, time_format)
+
+
 def video_pair_generation(video_path, CC_sequence, interval:int = 300, tag:bool = True) -> tuple[list]:
     # time frame alignment need 
     # with the give interval ................
@@ -81,6 +86,7 @@ def video_pair_generation(video_path, CC_sequence, interval:int = 300, tag:bool 
     
     # get video name from video_path
     video_name = CC_sequence["background"]["FileName"]
+    video_start_time = parse_video_start_time(CC_sequence["background"]["Top"])
     output_dir = f"./frames/{video_name}"
     vid_frames = extract_frames_opencv(video_path, output_dir, interval=interval)
     
@@ -88,14 +94,13 @@ def video_pair_generation(video_path, CC_sequence, interval:int = 300, tag:bool 
 
     cc_seq_data = []
     raw_cc_data = CC_sequence["CC"]
-    video_start_time = parse_time(raw_cc_data[0]["StartTime"])
     cc_index = 0  # Start from the first CC entry
 
     for frame in vid_frames:
         frame_time = frame["timestamp"]
 
         # Update the CC index to the closest matching CC
-        while cc_index < len(raw_cc_data):
+        while cc_index < len(raw_cc_data) - 1:
             cc_end_time = parse_time(raw_cc_data[cc_index]["EndTime"])
             cc_primary_tag = raw_cc_data[cc_index]["PrimaryTag"]
             if frame_time > (cc_end_time - video_start_time).total_seconds() or "SEG" in cc_primary_tag:
