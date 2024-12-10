@@ -102,6 +102,7 @@ def video_pair_generation(video_path, CC_sequence, interval:int = 300, tag:bool 
                 cc_index += 1
             else:
                 break
+        print(frame,cc_index)
         # Check if the frame falls into the current CC range
         cc_start_time = parse_time(raw_cc_data[cc_index]["StartTime"])
         cc_end_time = parse_time(raw_cc_data[cc_index]["EndTime"])
@@ -230,14 +231,3 @@ def process_video(video_path,
     video_name = CC_sequent_raw["background"]["FileName"]
     db_return_result = store_data(extracted_frames,pinecone_index,neo4j_driver,CC_sequent,result, name_spaces=video_name)
     print(f"[Finished]: store_data. Length of result = {db_return_result}")
-
-
-
-# Example usage
-if __name__ == '__main__':
-    video_path = './test.mp4'
-    CC_json_path = './test.json'
-    # vlm_endpoint = 'http://your-vlm-endpoint.com/api'  # Replace with your VLM endpoint
-    # process_video(video_path, vlm_endpoint)
-    vlm = VLM_EMB()
-    process_video(video_path=video_path, CC_json_path=CC_json_path,vlm_endpoint=vlm)
