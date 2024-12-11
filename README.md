@@ -114,6 +114,7 @@ Follow the steps below to set up and run the project locally:
     - Clone the VLM model (e.g., Qwen2-VL-2B-Instruct) from Hugging Face into the `./model` directory:
         ```bash
         cd ./model
+        pip install git+https://github.com/huggingface/transformers
         git clone https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct
         ```
 

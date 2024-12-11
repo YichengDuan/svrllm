@@ -1,1 +1,9 @@
-
+neo4j
+pinecone
+opencv-python
+tqdm
+pandas
+matplotlib
+seaborn
+shutil
+numpy
