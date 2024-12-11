@@ -66,7 +66,6 @@ def sv_test(
     
     # Cleanup databases
     cleanup_db()
-    print(extract_interval)
     # Process the video to extract frames
     process_video(
         video_path=video_path,
@@ -75,20 +74,19 @@ def sv_test(
         video_extract_interval=extract_interval
     )
 
-    # Extract frames from the video at specified intervals
+    # Extract frames from the video at half of the intervals
     test_frames = extract_frames_opencv(
         video_path=video_path,
         output_dir=tmp_frame_path,
-        interval=50
+        interval= extract_interval/2.0
     )
     correct = 0
-    total = len(test_frames)
+    total = len(test_frames[1::2])
 
     # Iterate through each frame to evaluate retrieval
-    for frame in test_frames:
+    for frame in tqdm(test_frames[1::2],desc="Evaluating"):
         image_path = frame["frame_path"]
         correct_time = frame["timestamp"]
-        
         # Retrieve results using the specified method
         total_results = retrieve_method(
             image_path=image_path,
@@ -105,7 +103,7 @@ def sv_test(
             true_time=correct_time
         )
         
-        if frame_test_result:
+        if frame_test_result and correct_time % extract_interval != 0:
             correct += 1
 
     # Calculate recall
@@ -125,7 +123,7 @@ if __name__ == "__main__":
     logging.basicConfig(
         filename=log_file_path,
         filemode='w',
-        level=logging.DEBUG,
+        level=logging.INFO,
         format='%(asctime)s - %(levelname)s - %(message)s'
     )
 
@@ -133,7 +131,8 @@ if __name__ == "__main__":
     logging.info("Starting video retrieval experiments.")
 
     # Define parameter lists
-    extract_interval_list = [10, 25, 50, 100]  # in seconds
+    extract_interval_list = [15, 25, 50, 100]  # in seconds
+
     method_list = ["simple_mean", "max_pool", "mean_pool", "concat_layers"]
 
     # Generate all possible combinations of parameters
@@ -195,7 +194,7 @@ if __name__ == "__main__":
     print(f"Results saved to {csv_file_path}")
 
     # Set Seaborn style for better aesthetics
-    sns.set(style="whitegrid")
+    sns.set_theme(style="whitegrid")
 
     # Define a helper function to create and save plots
     def create_and_save_plot(df, x, y, hue, title, xlabel, ylabel, filename):
@@ -236,7 +235,7 @@ if __name__ == "__main__":
         data=df_results,
         x="method",
         y="recall",
-        ci=None
+        errorbar=None
     )
     plt.title("Recall for Different Methods")
     plt.xlabel("Method")
