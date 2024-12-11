@@ -1,0 +1,5 @@
+neo4j_uri: ""
+neo4j_user: ""
+neo4j_password: ""
+pinecone_api_key: ""
+

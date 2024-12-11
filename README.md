@@ -1,15 +1,30 @@
+# Subsequent Video Retrieval Enhancement using VLM
 
-# Subsequent Video Retrieval Enhancement using VLM and RAG
+## Table of Contents
+
+- [Project Goal](#project-goal)
+- [Overview](#overview)
+- [Approach](#approach)
+  - [System Architecture](#system-architecture)
+- [Workflow](#workflow)
+- [Technology Stack](#technology-stack)
+- [Setup and Installation](#setup-and-installation)
+- [Usage](#usage)
+- [Future Enhancements](#future-enhancements)
+- [License](#license)
+- [Contact](#contact)
+
+---
 
 ## Project Goal
 
-The primary objective of this project is to retrieve subsequent TV shows and news videos based on an initial provided video clip. This involves enhancing the retrieval results through the integration of a Vision-Language Model (VLM) and a Retrieval-Augmented Generation (RAG) process.
+The primary objective of this project is to enhance the retrieval of subsequent TV shows and news videos based on an initially provided video clip. This is achieved by integrating a Vision-Language Model (VLM) with a Retrieval-Augmented Generation (RAG) process to improve the relevance and contextual accuracy of the retrieval results.
 
 ---
 
 ## Overview
 
-The project architecture is designed to process videos and their associated prompts using a Vision-Language Model (VLM), enhance video retrieval using a VectorDB, and subsequently store and manage the video data within a video file system. The approach focuses on ensuring that the retrieved results are enriched and contextually relevant.
+This project leverages advanced machine learning techniques to process videos and associated textual prompts using a Vision-Language Model (VLM). By enhancing video retrieval with a Vector Database (VectorDB) and managing video data efficiently within a graph-based storage system, the approach ensures that retrieved results are both enriched and contextually relevant.
 
 ---
 
@@ -19,42 +34,44 @@ The project architecture is designed to process videos and their associated prom
 
 1. **Input Sources:**
     - **Video:** User-provided video clip.
-    - **Prompt:** User-provided textual input to guide the retrieval.
+    - **Prompt:** User-provided textual input to guide the retrieval process.
 
 2. **Processing Components:**
-    - **Video Pre-processing:** Initial processing of the video input to extract key frames, features, and metadata.
-    - **Prompt Enhancing:** Processing the textual prompt to improve relevance and context for VLM-based queries.
+    - **Video Pre-processing:** Extracts key frames, features, and metadata from the input video.
+    - **Prompt Enhancement:** Processes the textual prompt to enhance relevance and context for VLM-based queries.
 
 3. **Core Model (VLM):**
-    - The Vision-Language Model (VLM) processes both the video and enhanced prompt data, extracting meaningful features and generating representations.
+    - The Vision-Language Model (VLM) processes both video data and the enhanced prompt, extracting meaningful features and generating rich representations.
 
 4. **Retrieval and Storage:**
-    - **VectorDB:** The processed data is stored in a Vector Database (VectorDB) for fast similarity search and retrieval.
-    - **Graph DB** Subsequent retrieved video results are stored in a structured Graph Database for easy access and retrieval.
+    - **VectorDB:** Stores the processed data in a Vector Database for fast similarity searches and efficient retrieval.
+    - **Graph DB:** Organizes and stores metadata in a structured Graph Database, facilitating easy access and retrieval of related video data.
 
 5. **Output Generation:**
-    - **Answer/Summary:** Generates a summary or response based on the retrieved subsequent videos.
+    - **Answer/Summary:** Generates a summary or response based on the retrieved subsequent videos, providing users with concise and relevant information.
 
 ---
 
 ## Workflow
 
 1. **User Input:**
-    - The user provides a video and an optional prompt.
-2. **Video Pre-processing:**
-    - The video is processed to extract key data.
-3. **Prompt Enhancing:**
-    - The prompt is enhanced for better understanding by the VLM.
-4. **Vision-Language Model Processing:**
-    - The VLM processes the inputs and communicates with the VectorDB to identify related content.
-5. **Retrieval and Management:**
-    - Similar or related videos are retrieved and stored.
-6. **Output Generation:**
-    - A final summary or answer is provided based on the retrieved content.
+    - The user provides a video clip and an optional textual prompt.
 
----
-## TODO:
-- Implement the Output Generation (Answer/Summary) stage.
+2. **Video Pre-processing:**
+    - The video is processed to extract key frames, features, and associated metadata.
+
+3. **Prompt Enhancement:**
+    - The textual prompt is enhanced to improve its relevance and context, ensuring better understanding by the VLM.
+
+4. **Vision-Language Model Processing:**
+    - The VLM processes the extracted video data and the enhanced prompt to generate vector embeddings.
+
+5. **Retrieval and Management:**
+    - Similar or related video frames are retrieved from the VectorDB and managed within the Graph Database.
+
+6. **Output Generation:**
+    - A final summary or answer is generated based on the retrieved content, providing users with meaningful insights.
+
 ---
 
 ## Technology Stack
@@ -63,63 +80,82 @@ The project architecture is designed to process videos and their associated prom
 - **Vector Database (VectorDB)**
 - **Retrieval-Augmented Generation (RAG) Process**
 - **Video Processing Libraries**
-- **Text Processing and NLP Tools**
-
 ---
 
 ## Setup and Installation
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/YichengDuan/svrllm.git
-   ```
-2. Install dependencies:
-   ```bash
-   cd SVRLLM
-   pip install -r requirements.txt
-   ```
-3. Configure environment variables:
-   - Configure any required API keys, database credentials in a `.config.yaml` file.
+Follow the steps below to set up and run the project locally:
 
-4. Run the project:
-    processing video
-   ```bash
-   python test_main.py
-   ```
-    retrival testing
+1. **Clone the Repository:**
     ```bash
-   python retrival.py
-   ```
----
+    git clone https://github.com/YichengDuan/svrllm.git
+    ```
 
-## Usage
+2. **Navigate to the Project Directory:**
+    ```bash
+    cd svrllm
+    ```
 
-1. Provide a video clip and optional prompt through the interface or API.
-2. The system processes the input, enhances prompts, retrieves similar content, and returns results.
-3. Access subsequent videos and summaries as output.
+3. **Install Dependencies:**
+    Ensure you have Python installed (preferably Python 3.8 or higher). Install the required packages using pip:
+    ```bash
+    pip install -r requirements.txt
+    ```
 
----
+4. **Configure Environment Variables:**
+    - Rename the configuration template:
+        ```bash
+        cp config_template.yaml .config.yaml
+        ```
+    - Open `.config.yaml` and set the necessary API keys and database credentials as required.
+
+5. **Prepare Data:**
+    - Place your video files and corresponding transcript files into the `./data/` directory.
+    - Clone the VLM model (e.g., Qwen2-VL-2B-Instruct) from Hugging Face into the `./model` directory:
+        ```bash
+        cd ./model
+        git clone https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct
+        ```
+
+6. **Run Experiments:**
+    - **Single Video Retrieval Experiment:**
+        - Ensure you have the required video and transcript files (e.g., `2023-01-01_1800_US_CNN_CNN_Newsroom_With_Fredricka_Whitfield.json` and `2023-01-01_1800_US_CNN_CNN_Newsroom_With_Fredricka_Whitfield.mp4`) placed in the `./data/` directory.
+        - Execute the experiments:
+            ```bash
+            # Run Single Video Retrieval Experiment in Strict Condition
+            python single_video_experiment_strict.py
+
+            # Run Single Video Retrieval Experiment in Loose Condition
+            python single_video_experiment_loose.py
+            ```
+
 
 ## Future Enhancements
 
-- Integration with additional VLMs for broader context understanding.
-- Improved RAG processes for enhanced response generation.
-- Scalability improvements for large-scale video datasets.
+- **Integration with Additional VLMs:**
+    - Incorporate more Vision-Language Models to enhance context understanding and retrieval accuracy.
+
+- **Improved RAG Processes:**
+    - Refine the Retrieval-Augmented Generation pipeline to generate more accurate and contextually relevant responses.
+
+- **Scalability Enhancements:**
+    - Optimize the system to handle larger-scale video datasets, ensuring high performance and efficient retrieval times.
+
+- **User Interface Development:**
+    - Develop a user-friendly interface to facilitate easier interaction with the retrieval system.
 
 ---
 
 ## License
 
-[MIT License](LICENSE)
-
----
-
-## Contributing
-
-We welcome contributions! Please see our [contributing guidelines](CONTRIBUTING.md) for more details.
+This project is licensed under the [MIT License](LICENSE).
 
 ---
 
 ## Contact
 
-For any questions, issues, or feedback, please open an issue in this repository or contact the project maintainers.
+For any questions, issues, or feedback, please:
+
+- **Open an Issue:** Visit the [GitHub Issues](https://github.com/YichengDuan/svrllm/issues) page.
+
+---
