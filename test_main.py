@@ -10,4 +10,4 @@ from main_pp import process_video
 
 
 vlm = VLM_EMB()
-process_video(video_path=video_path, CC_json_path=CC_json_path,vlm_endpoint=vlm,video_extract_interval=10)
+process_video(video_path=video_path, CC_json_path=CC_json_path,vlm_endpoint=vlm,video_extract_interval=50)

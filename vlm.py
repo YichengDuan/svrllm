@@ -179,7 +179,7 @@ class VLM_EMB(object):
     def muti_image_message_builder(self,image_inputs:list,text:str):
         # Messages containing multiple images and a text query
         messages = [
-            {"role": "system", "content": "You are a summary helper for describe a story using given images and text transcribe"},
+            {"role": "system", "content": "You are a story teller using given images and text transcribe"},
             {"role": "user",
                 "content": [],
             }
@@ -189,7 +189,7 @@ class VLM_EMB(object):
 
         # Add the text query to the messages
         messages[1]["content"].append({"type": "text", 
-                                       "text": f"Please describe the story behind the image. Do not describe the image itself. The transcription of the provided image is: {text}"})
+                                       "text": f"Please tell a story behind this into an small paragraph. Using transcription of the provided image: {text}"})
 
         return messages
     def muti_image_text(self,image_inputs:list,text:str):
@@ -220,18 +220,3 @@ class VLM_EMB(object):
         )
 
         return output_text
-
-if __name__ == "__main__":
-
-    my_vlm = VLM_EMB()
-    
-    # image_path_list = ["./frames/frame_8990.jpg", "./frames/frame_17980.jpg",]
-    # text_prompt_list = ["what is this?","what is this?"]
-    image_path_list = ["./frames/frame_600s.jpg",]
-    text_prompt_list = ["what is this?fjdskla;fdjl;sjakl"]
-    # ["simple_mean", "max_pool", "mean_pool", "concat_layers"]
-    vec_res = my_vlm.generate_dense_vector(image_path_list, text_prompt_list)
-    
-
-    
-
