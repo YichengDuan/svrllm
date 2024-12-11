@@ -100,7 +100,7 @@ def retrieve_method(image_path,
         else:
             tmp_end = _hit['next'][-1]['timestamp']
         if len(_hit['previous']) == 0:
-            tmp_start = 0
+            tmp_start = 0   
         else:
             tmp_start = _hit['previous'][-1]['timestamp']
         video_name = _hit['namespace']
@@ -125,5 +125,5 @@ def retrieve_method(image_path,
 
 
 if __name__ == '__main__':
-    result = retrieve_method(image_path="./frames/frame_900s.jpg", strength=1, total_time=3600.0,summary_output=True)
+    result = retrieve_method(image_path="./frames/2023-01-01_1800_US_CNN_CNN_Newsroom_With_Fredricka_Whitfield/frame_900s.jpg", strength=2, total_time=3600.0,summary_output=True)
     print(result)

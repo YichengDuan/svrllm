@@ -13,7 +13,6 @@ import shutil
 import cv2
 
 
-
 def cleanup_frames_directory(directory_path: str) -> bool:
     """
     Deletes the specified directory and recreates it.
@@ -36,60 +35,39 @@ def cleanup_frames_directory(directory_path: str) -> bool:
     except Exception as e:
         logging.error(f"Error cleaning up directory {directory_path}: {e}")
         return False
-    
+
+
 def sv_test(
-    extract_interval: float,
-    method: str = 'simple_mean',
-    strength: int = 1,
-    result_top_k: int = 1,
-    video_path: str = "",
-    tmp_frame_path: str = "",
+    strength: int,
+    result_top_k: int,
+    test_frames: list,
     duration: float = 0.0,
-    CC_json_path: str = "",
-    VLM_BACKEND:VLM_EMB = VLM_BACKEND
+    method: str = "simple_mean"
 ) -> dict:
     """
     Evaluate video retrieval performance by calculating recall.
 
-    :param extract_interval: Time interval (in seconds) between frame extractions.
-    :param method: Retrieval method to use (e.g., 'simple_mean').
-    :param strength: Strength parameter for retrieval (fixed at 1).
-    :param result_top_k: Number of top results to consider for each retrieval (fixed at 1).
+    :param strength: Strength parameter for retrieval.
+    :param result_top_k: Number of top results to consider for each retrieval.
     :param video_path: Path to the input video file.
     :param tmp_frame_path: Directory to store extracted frames.
     :param duration: Total duration of the video (in seconds).
     :param CC_json_path: Path to the corresponding JSON file for captions or metadata.
     :param VLM_BACKEND: Endpoint or identifier for the Vision-Language Model backend.
-    
+    :param method: Retrieval method to use (e.g., 'simple_mean').
+
     :return: Dictionary containing recall, correct count, and total frames.
     """
-    
-    # Cleanup databases
-    cleanup_db()
-    print(extract_interval)
-    # Process the video to extract frames
-    process_video(
-        video_path=video_path,
-        CC_json_path=CC_json_path,
-        vlm_endpoint=VLM_BACKEND,
-        video_extract_interval=extract_interval
-    )
 
-    # Extract frames from the video at specified intervals
-    test_frames = extract_frames_opencv(
-        video_path=video_path,
-        output_dir=tmp_frame_path,
-        interval=50
-    )
+
     correct = 0
-    total = len(test_frames)
+    total = len(test_frames[1::2])
 
     # Iterate through each frame to evaluate retrieval
-    for frame in test_frames:
+    for frame in tqdm(test_frames[1::2], desc=f"Evaluating (strength={strength}, top_k={result_top_k})"):
         image_path = frame["frame_path"]
         correct_time = frame["timestamp"]
-        
-        # Retrieve results using the specified method
+        # Retrieve results using the specified method and strength
         total_results = retrieve_method(
             image_path=image_path,
             strength=strength,
@@ -97,15 +75,15 @@ def sv_test(
             summary_output=False,
             method=method
         )
-        
+
         # Determine if the retrieval result is correct
         frame_test_result = perdict_result(
             total_results=total_results,
             k=result_top_k,
             true_time=correct_time
         )
-        
-        if frame_test_result:
+
+        if frame_test_result and correct_time % 15 != 0:  # Fixed extract_interval=15
             correct += 1
 
     # Calculate recall
@@ -117,30 +95,29 @@ def sv_test(
         "total": total
     }
 
+
 if __name__ == "__main__":
     # Configure logging
     results_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sve_test_results")
     os.makedirs(results_dir, exist_ok=True)
-    log_file_path = os.path.join(results_dir, "sv_experiment.log")
+    log_file_path = os.path.join(results_dir, "sv_experiment_loose.log")
     logging.basicConfig(
         filename=log_file_path,
         filemode='w',
-        level=logging.DEBUG,
+        level=logging.INFO,
         format='%(asctime)s - %(levelname)s - %(message)s'
     )
 
     # Log the start of experiments
     logging.info("Starting video retrieval experiments.")
 
-    # Define parameter lists
-    extract_interval_list = [10, 25, 50, 100]  # in seconds
-    method_list = ["simple_mean", "max_pool", "mean_pool", "concat_layers"]
+    # Fixed parameters
+    extract_interval = 15  # Fixed to 15 seconds
+    method = "simple_mean"  # Fixed to "simple_mean"
+    result_top_k = 1       # Fixed to 1
 
-    # Generate all possible combinations of parameters
-    parameter_combinations = list(itertools.product(
-        extract_interval_list,
-        method_list
-    ))
+    # Define experiment parameters
+    strength_list = [1, 2, 3]
 
     # Initialize a list to store results
     results = []
@@ -152,29 +129,46 @@ if __name__ == "__main__":
     duration = calculate_video_duration(video_path)
     tmp_frame_path = os.path.join(local_path, "frames/svc_tmp/")
 
+    # Cleanup frames directory
+    cleanup_frames_directory(tmp_frame_path)
+     # Cleanup databases
+    cleanup_db()
+
+    # Process the video once with fixed extract_interval and method
+    logging.info(f"Processing video once with extract_interval={extract_interval}, method={method}")
+    process_video(
+        video_path=video_path,
+        CC_json_path=CC_json_path,
+        vlm_endpoint=VLM_BACKEND,
+        video_extract_interval=extract_interval
+    )
+
+    # Extract frames once
+    logging.info(f"Extracting frames with interval={extract_interval / 2.0} seconds")
+    test_frames = extract_frames_opencv(
+        video_path=video_path,
+        output_dir=tmp_frame_path,
+        interval=extract_interval / 2.0
+    )
+
     # Iterate over each combination with a progress bar
-    for extract_interval, method in tqdm(parameter_combinations, desc="Running Experiments"):
-        cleanup_frames_directory(tmp_frame_path)
-        logging.info(f"Running experiment with extract_interval={extract_interval}, method={method}")
-        recall_result = sv_test(
-            extract_interval=extract_interval,
-            method=method,
-            strength=1,        # Fixed value
-            result_top_k=1,    # Fixed value
-            video_path=video_path,
-            tmp_frame_path=tmp_frame_path,
+    for strength in tqdm(strength_list, desc="Running Experiments"):
+        logging.info(f"Running experiment with strength={strength}, result_top_k={result_top_k}")
+        recall_result = sv_test(    
+            test_frames=test_frames,
+            strength=strength,
+            result_top_k=result_top_k,
             duration=duration,
-            CC_json_path=CC_json_path,
-            VLM_BACKEND=VLM_BACKEND
+            method=method
         )
 
         # Append the result to the list
         results.append({
-            "extract_interval": extract_interval,
-            "method": method,
+            "strength": strength,
+            "result_top_k": result_top_k,
+            "recall": recall_result["recall"],
             "correct": recall_result["correct"],
-            "total": recall_result["total"],
-            "recall": recall_result["recall"]
+            "total": recall_result["total"]
         })
 
         # Log the result
@@ -182,7 +176,6 @@ if __name__ == "__main__":
             logging.info(f"Recall: {recall_result['recall']:.4f} (Correct: {recall_result['correct']}, Total: {recall_result['total']})")
         else:
             logging.warning("Recall could not be calculated due to an error.")
-
     # Convert results to a DataFrame
     df_results = pd.DataFrame(results)
 
@@ -195,7 +188,7 @@ if __name__ == "__main__":
     print(f"Results saved to {csv_file_path}")
 
     # Set Seaborn style for better aesthetics
-    sns.set(style="whitegrid")
+    sns.set_theme(style="whitegrid")
 
     # Define a helper function to create and save plots
     def create_and_save_plot(df, x, y, hue, title, xlabel, ylabel, filename):
@@ -218,37 +211,37 @@ if __name__ == "__main__":
         logging.info(f"Plot saved to {plot_path}")
         print(f"Plot saved to {plot_path}")
 
-    # Plot 1: Recall vs. Extract Interval for each Method
+    # Plot: Recall vs. Strength
     create_and_save_plot(
         df=df_results,
-        x="extract_interval",
+        x="strength",
         y="recall",
-        hue="method",
-        title="Recall vs. Extract Interval for Different Methods",
-        xlabel="Extract Interval (seconds)",
+        hue=None,  # No hue since result_top_k is fixed
+        title="Recall vs. Strength",
+        xlabel="Strength",
         ylabel="Recall",
-        filename="Recall_vs_ExtractInterval.png"
+        filename="Recall_vs_Strength.png"
     )
 
-    # Plot 2: Recall vs. Method
+    # Additionally, you can create a bar plot for better visualization
     plt.figure(figsize=(10, 6))
     sns.barplot(
         data=df_results,
-        x="method",
+        x="strength",
         y="recall",
-        ci=None
+        palette="viridis"
     )
-    plt.title("Recall for Different Methods")
-    plt.xlabel("Method")
+    plt.title("Recall for Different Strength Values")
+    plt.xlabel("Strength")
     plt.ylabel("Recall")
     plt.tight_layout()
 
-    # Save the plot
-    plot2_path = os.path.join(results_dir, "Recall_vs_Method.png")
-    plt.savefig(plot2_path)
+    # Save the bar plot
+    bar_plot_path = os.path.join(results_dir, "Recall_BarPlot_vs_Strength.png")
+    plt.savefig(bar_plot_path)
     plt.close()
-    logging.info(f"Plot saved to {plot2_path}")
-    print(f"Plot saved to {plot2_path}")
+    logging.info(f"Bar plot saved to {bar_plot_path}")
+    print(f"Bar plot saved to {bar_plot_path}")
 
     logging.info("All experiments completed successfully.")
     print("All experiments completed. Check the 'sve_test_results' directory for results and plots.")
