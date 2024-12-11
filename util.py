@@ -1,3 +1,6 @@
+import random
+import shutil
+
 import cv2
 import os
 from config import CV2_BACKEND
@@ -46,6 +49,67 @@ def store_vector_in_pinecone(pinecone_index,vector, vector_id,name_space):
     except Exception as e:
         print(f"Error storing vector in Pinecone: {e}")
 
+def extract_random_frame(video_path:str, output_dir: str, extract_num: int):
+    """
+    Extracts a frame from the video at the specified time and saves it as an image.
+
+    Parameters:
+        video_path (str): Path to the input video file.
+        extract_num(int): Number of random frames to extract.
+        output_dir (str): Path to save the extracted image.
+
+    Returns:
+        frame: the frame extracted from the video.
+        time: the corresponding time in seconds.
+    """
+    # Open the video file
+    vidcap = cv2.VideoCapture(video_path,CV2_BACKEND)
+    if not vidcap.isOpened():
+        print("Error: Cannot open video file.")
+        return False
+
+    # Get frames per second (fps) to calculate frame number
+    fps = vidcap.get(cv2.CAP_PROP_FPS)
+    if fps == 0:
+        print("Error: Cannot retrieve FPS from video.")
+        vidcap.release()
+        return False
+
+    total_frames = int(vidcap.get(cv2.CAP_PROP_FRAME_COUNT))
+    if total_frames == 0:
+        print("Error: Video has zero frames.")
+        vidcap.release()
+        return []
+    # make sure we don't exceed the total number of frames'
+    extract_num = min(extract_num, total_frames)
+    # Make sure output directory exist
+    os.makedirs(output_dir, exist_ok=True)
+
+    selected_frames = random.sample(range(total_frames), extract_num)
+    selected_frames.sort()
+
+    results = []
+    n = 0
+    for frame_idx in selected_frames:
+        n += 1
+        vidcap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+        success, image = vidcap.read()
+        if not success:
+            print(f"Warning: Cannot read frame {frame_idx}. Skipping.")
+            continue
+
+        frame_time = frame_idx / fps
+
+        output_image_name = f"{n}-frame_{frame_idx}_time_{frame_time:.2f}.jpg"
+        output_image_path = os.path.join(output_dir, output_image_name)
+
+        cv2.imwrite(output_image_path, image)
+
+        results.append((frame_time, output_image_path))
+    vidcap.release()
+    return results
+
+
 
 def extract_frame(video_path:str, time_sec:float, output_image_path:str):
     """
@@ -60,7 +124,7 @@ def extract_frame(video_path:str, time_sec:float, output_image_path:str):
         bool: True if frame extraction was successful, False otherwise.
     """
     # Open the video file
-    vidcap = cv2.VideoCapture(video_path,cv2.CAP_AVFOUNDATION)
+    vidcap = cv2.VideoCapture(video_path,CV2_BACKEND)
     if not vidcap.isOpened():
         print("Error: Cannot open video file.")
         return False
@@ -215,3 +279,29 @@ def perdict_result(total_results:dict,k:int,true_time:float)-> bool:
         if predicted_start <= true_time <= predicted_end:
             return True
     return False
+
+def get_video_path(data_dir,search_range = None):
+    video = []
+
+    dirs = []
+    for d in os.listdir(data_dir):
+        d_path = os.path.join(data_dir, d)
+        if os.path.isdir(d_path) and d.isdigit():
+            dirs.append((int(d), d_path))
+
+    dirs.sort(key=lambda x: x[0])
+
+    if search_range is not None:
+        dirs = dirs[:search_range]
+
+    for _, d_path in dirs:
+        for root, _, files in os.walk(d_path):
+            for file in files:
+                if file.lower().endswith(".mp4"):
+                    full_path = os.path.join(root, file)
+                    video_name = os.path.splitext(file)[0]
+                    video.append({"video_name": video_name, "video_path": full_path})
+
+    return video
+
+
